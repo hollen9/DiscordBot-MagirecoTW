@@ -21,11 +21,21 @@ namespace NetaSoundIndexEngineTestConsole
                 var a = NetaSound.QueryNetaItemsByAlias("!");
                 if (a != null && a.Count > 0)
                 {
-                    Console.WriteLine($"QueryResult: \n");
+                    Console.WriteLine($"=\"!\" 's QueryResult: \n");
 
                     foreach (var q in a)
                     {
 
+                        Console.Write($"{q.Filename}, ");
+                    }
+                }
+
+                var qCharacters = NetaSound.QueryNetaItemsByCharacter("七海やちよ");
+                if (qCharacters != null && qCharacters.Count > 0)
+                {
+                    Console.WriteLine($"@@\"七海やちよ\" 's QueryResult: \n");
+                    foreach (var q in qCharacters)
+                    {
                         Console.Write($"{q.Filename}, ");
                     }
                 }

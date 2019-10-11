@@ -208,6 +208,11 @@ namespace Hollen9.NetaSoundIndex
             return QueryNetaItemsBy_CommonLogic(alias, AliasKeyword_FileNetaTagIndex);
         }
 
+        public IList<QueryNetaTag> QueryNetaItemsByCharacter(string characterName)
+        {
+            return QueryNetaItemsBy_CommonLogic(characterName, CharacterName_FileNetaTagIndex);
+        }
+
         private IList<QueryNetaTag> QueryNetaItemsBy_CommonLogic(string queryText, IDictionary<string, IList<NetaAccessIndex>> accessIndeices)
         {
             if (accessIndeices.TryGetValue(queryText, out var possibleNetaItems))
