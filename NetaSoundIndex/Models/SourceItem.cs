@@ -10,9 +10,4 @@ namespace NetaSoundIndex.Models
         public string Title { get; set; }
         public List<string> Urls { get; set; }
     }
-
-    //public class SourceInfo
-    //{
-    //    public Dictionary<Guid, SourceItem> SourceItems { get; set; }
-    //}
 }
