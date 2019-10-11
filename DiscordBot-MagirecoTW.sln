@@ -1,0 +1,37 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.29215.179
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MitamaBot", "DiscordBot-MagirecoTW\MitamaBot.csproj", "{623077EB-DA39-4E26-8D8C-7B8B35F5280D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetaSoundIndex", "NetaSoundIndex\NetaSoundIndex.csproj", "{BCA4DC6D-98A6-4F47-AE70-993D5D2B8D49}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetaSoundIndexEngineTestConsole", "NetaSoundIndexEngineTestConsole\NetaSoundIndexEngineTestConsole.csproj", "{93EDC6FF-27E6-43C7-A3CE-B531BF93DF98}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{623077EB-DA39-4E26-8D8C-7B8B35F5280D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{623077EB-DA39-4E26-8D8C-7B8B35F5280D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{623077EB-DA39-4E26-8D8C-7B8B35F5280D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{623077EB-DA39-4E26-8D8C-7B8B35F5280D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BCA4DC6D-98A6-4F47-AE70-993D5D2B8D49}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BCA4DC6D-98A6-4F47-AE70-993D5D2B8D49}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BCA4DC6D-98A6-4F47-AE70-993D5D2B8D49}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BCA4DC6D-98A6-4F47-AE70-993D5D2B8D49}.Release|Any CPU.Build.0 = Release|Any CPU
+		{93EDC6FF-27E6-43C7-A3CE-B531BF93DF98}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{93EDC6FF-27E6-43C7-A3CE-B531BF93DF98}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{93EDC6FF-27E6-43C7-A3CE-B531BF93DF98}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{93EDC6FF-27E6-43C7-A3CE-B531BF93DF98}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {39D97123-0006-4578-8606-A5E68D2DD619}
+	EndGlobalSection
+EndGlobal
