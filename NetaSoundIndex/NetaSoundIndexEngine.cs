@@ -3,6 +3,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -10,12 +11,26 @@ namespace NetaSoundIndex
 {
     public class NetaSoundIndexEngine
     {
+        //public List<string> Titles { get; set; }
+        public SortedList<string, int> SortedTitles { get; }
+        //public Dictionary<string, int> TitleIndexPairs { get; }
 
-        public Dictionary<string, Dictionary<Guid, SourceItem>> TitleSourceInfo { get; }
+        public Dictionary<string, IDictionary<Guid, SourceItem>> Title_SourceItems { get; }
+        public Dictionary<string, IList<FileNetaTag>> Title_NetaTags { get; }
+
+        public Dictionary<string, IList<NetaAccessIndex>> AliasKeyword_FileNetaTagIndex { get; }
 
         public NetaSoundIndexEngine(string base_path)
         {
-            TitleSourceInfo = new Dictionary<string, Dictionary<Guid, SourceItem>>();
+            //Titles = new List<string>();
+            SortedTitles = new SortedList<string, int>();
+
+            //TitleIndexPairs = new Dictionary<string, int>();
+
+            Title_SourceItems = new Dictionary<string, IDictionary<Guid, SourceItem>>();
+            Title_NetaTags = new Dictionary<string, IList<FileNetaTag>>();
+
+            AliasKeyword_FileNetaTagIndex = new Dictionary<string, IList<NetaAccessIndex>>();
 
             if (!Directory.Exists(base_path))
             {
@@ -26,21 +41,27 @@ namespace NetaSoundIndex
             foreach (var subDir in subDirs)
             {
                 string title = Path.GetFileName(subDir);
+
                 var seriesJsonPath = Path.Combine(subDir, "sourceInfo.json");
                 if (File.Exists(seriesJsonPath))
                 {
                     try
                     {
                         var jsonText = File.ReadAllText(seriesJsonPath, Encoding.UTF8);
-                        if (!TitleSourceInfo.ContainsKey(title))
+                        if (!Title_SourceItems.ContainsKey(title))
                         {
-                            TitleSourceInfo.Add(title, new Dictionary<Guid, SourceItem>());
+                            Title_SourceItems.Add(title, new Dictionary<Guid, SourceItem>());
+
+                            if (!SortedTitles.ContainsKey(title))
+                            {
+                                SortedTitles.Add(title, SortedTitles.Count); // appear 1st times out of 2
+                            }
                         }
                         var sourceInfoEntries = JsonConvert.DeserializeObject<Dictionary<Guid, SourceItem>> (jsonText);
                         
                         foreach (var sourceEntry in sourceInfoEntries)
                         {
-                            TitleSourceInfo[title].Add(sourceEntry.Key, sourceEntry.Value);
+                            Title_SourceItems[title].Add(sourceEntry.Key, sourceEntry.Value);
 
                             Console.WriteLine(
                                 $"Source GUID: {sourceEntry.Key}\n" +
@@ -60,15 +81,138 @@ namespace NetaSoundIndex
                     
                 }
 
+                if (!Title_NetaTags.ContainsKey(title))
+                {
+                    Title_NetaTags.Add(title, new List<FileNetaTag>());
+
+                    if (!SortedTitles.ContainsKey(title))
+                    {
+                        SortedTitles.Add(title, SortedTitles.Count); // appear 2nd times out of 2
+                    }
+                }
+
+                // NetaSound's Filename Example: "C:\NetaSound\magirepo\@七海やちよ;$e4d592eb4a1f402f8024ee6838b50eea;=10bai,mouikanaito;&65817312732655616.mp3"
+                // Filename's max characters <= 255
                 var files = Directory.GetFiles(subDir);
                 foreach(var file in files)
                 {
-                    if (Path.GetExtension(file) == ".mp3")
-                    {
-                        Console.WriteLine(file + "\n");
+                    var filename = Path.GetFileName(file);
+                    var filename_noext = Path.GetFileNameWithoutExtension(file);
 
+                    // determine if it is sound file
+                    if (Path.GetExtension(filename) == ".mp3")
+                    {
+                        Console.WriteLine(filename_noext + "\n");
+                        var segments = filename_noext.Split(';');
+                        var netaTag = new FileNetaTag();
+
+                        foreach (var segment in segments)
+                        {    
+                            netaTag.Filename = filename;
+
+                            if (segment.Length <= 1)
+                            {
+                                continue;
+                            }
+
+
+                            switch (segment[0])
+                            {
+                                case '@': // character's name
+                                    netaTag.Characters = segment.Remove(0, 1).Split(',');
+                                    break;
+                                case '$': // source guid
+                                    Guid.TryParse(segment.Remove(0, 1), out var guid);
+                                    netaTag.SourceGuid = guid;
+                                    break;
+                                case '=': // alias and desciption
+                                    netaTag.Alias = segment.Remove(0, 1).Split(',');
+                                    break;
+                                case '&': // author Discord Id
+                                    var id_list = new List<long>();
+                                    Array.ForEach(segment.Remove(0, 1).Split(','), x => 
+                                    {
+                                        if (long.TryParse(x, out var id))
+                                        {
+                                            id_list.Add(id);
+                                        }
+                                    } );
+                                    netaTag.AuthorsDiscordId = id_list.ToArray();
+                                    id_list = null;
+                                    break;
+                            }
+
+                            Title_NetaTags[title].Add(netaTag);
+                        }
+
+                        if (netaTag.Alias != null)
+                        {
+                            Array.ForEach(netaTag.Alias, x =>
+                            {
+                                if (!AliasKeyword_FileNetaTagIndex.ContainsKey(x))
+                                {
+                                    AliasKeyword_FileNetaTagIndex.Add(x, new List<NetaAccessIndex>());
+                                }
+
+                                var indexInfo = new NetaAccessIndex()
+                                {
+                                    NetaTagIndex = Title_NetaTags[title].IndexOf(netaTag),
+                                    TitleIndex = SortedTitles.ContainsKey(title) ? SortedTitles[title] : -1
+                                };
+
+                                if (indexInfo.NetaTagIndex > -1 &&
+                                    indexInfo.TitleIndex > -1)
+                                {
+                                    AliasKeyword_FileNetaTagIndex[x].Add(indexInfo);
+                                }
+                            });
+                        }
+                        else
+                        {
+                            Console.WriteLine($"The NETA doesn't have alias naming tag: {netaTag.Filename}");
+                        }
                     }
                 }
+            }
+            // The above code already finished filling: TitleSourceItems, TitleNetaTags   
+        }
+
+        public List<QueryNetaTag> QueryNetaItemsByAlias(string alias)
+        {
+            if (AliasKeyword_FileNetaTagIndex.TryGetValue(alias, out var possibleNetaItems))
+            {
+                var queryNetaTags = new List<QueryNetaTag>();
+
+                foreach (var possibleNetaItem in possibleNetaItems)
+                {
+                    var queryNetaTag = new QueryNetaTag();
+
+                    string title = SortedTitles.Keys[possibleNetaItem.TitleIndex];
+                    queryNetaTag.Title = title;
+
+                    var netaItem = Title_NetaTags[title][possibleNetaItem.NetaTagIndex];
+
+                    queryNetaTag.SourceGuid = netaItem.SourceGuid;
+                    queryNetaTag.Characters = netaItem.Characters;
+                    queryNetaTag.AuthorsDiscordId = netaItem.AuthorsDiscordId;
+                    queryNetaTag.Alias = netaItem.Alias;
+                    queryNetaTag.Filename = netaItem.Filename;
+
+                    if (Title_SourceItems.TryGetValue(title, out var title_srcItems))
+                    {
+                        if (title_srcItems.TryGetValue(netaItem.SourceGuid, out var sourceItem))
+                        {
+                            queryNetaTag.Source = sourceItem;
+                        }
+                    }
+                    queryNetaTags.Add(queryNetaTag);
+                }
+
+                return queryNetaTags;
+            }
+            else
+            {
+                return null;
             }
         }
     }

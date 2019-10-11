@@ -16,6 +16,12 @@ namespace NetaSoundIndexEngineTestConsole
         {
             NetaSound = new NetaSoundIndexEngine(@"C:\NetaSound");
 
+            var a = NetaSound.QueryNetaItemsByAlias("shoukai");
+            if (a != null && a.Count > 0)
+            {
+                Console.WriteLine($"QueryResult: {a[0].Filename}");
+            }
+            
 
             await Task.Delay(-1);
         }
