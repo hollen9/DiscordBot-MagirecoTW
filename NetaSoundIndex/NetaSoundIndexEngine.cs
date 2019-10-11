@@ -1,4 +1,4 @@
-﻿using NetaSoundIndex.Models;
+﻿using Hollen9.NetaSoundIndex.Models;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
@@ -7,14 +7,11 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace NetaSoundIndex
+namespace Hollen9.NetaSoundIndex
 {
     public class NetaSoundIndexEngine
     {
-        //public List<string> Titles { get; set; }
         public SortedList<string, int> SortedTitles { get; }
-        //public Dictionary<string, int> TitleIndexPairs { get; }
-
         public Dictionary<string, IDictionary<Guid, SourceItem>> Title_SourceItems { get; }
         public Dictionary<string, IList<FileNetaTag>> Title_NetaTags { get; }
 
@@ -22,10 +19,7 @@ namespace NetaSoundIndex
 
         public NetaSoundIndexEngine(string base_path)
         {
-            //Titles = new List<string>();
             SortedTitles = new SortedList<string, int>();
-
-            //TitleIndexPairs = new Dictionary<string, int>();
 
             Title_SourceItems = new Dictionary<string, IDictionary<Guid, SourceItem>>();
             Title_NetaTags = new Dictionary<string, IList<FileNetaTag>>();
@@ -94,10 +88,10 @@ namespace NetaSoundIndex
                 // NetaSound's Filename Example: "C:\NetaSound\magirepo\@七海やちよ;$e4d592eb4a1f402f8024ee6838b50eea;=10bai,mouikanaito;&65817312732655616.mp3"
                 // Filename's max characters <= 255
                 var files = Directory.GetFiles(subDir);
-                foreach(var file in files)
+                foreach(var filename in files)
                 {
-                    var filename = Path.GetFileName(file);
-                    var filename_noext = Path.GetFileNameWithoutExtension(file);
+                    
+                    var filename_noext = Path.GetFileNameWithoutExtension(filename);
 
                     // determine if it is sound file
                     if (Path.GetExtension(filename) == ".mp3")
@@ -177,6 +171,11 @@ namespace NetaSoundIndex
             // The above code already finished filling: TitleSourceItems, TitleNetaTags   
         }
 
+        /// <summary>
+        /// Query 
+        /// </summary>
+        /// <param name="alias"></param>
+        /// <returns></returns>
         public List<QueryNetaTag> QueryNetaItemsByAlias(string alias)
         {
             if (AliasKeyword_FileNetaTagIndex.TryGetValue(alias, out var possibleNetaItems))
@@ -192,11 +191,7 @@ namespace NetaSoundIndex
 
                     var netaItem = Title_NetaTags[title][possibleNetaItem.NetaTagIndex];
 
-                    queryNetaTag.SourceGuid = netaItem.SourceGuid;
-                    queryNetaTag.Characters = netaItem.Characters;
-                    queryNetaTag.AuthorsDiscordId = netaItem.AuthorsDiscordId;
-                    queryNetaTag.Alias = netaItem.Alias;
-                    queryNetaTag.Filename = netaItem.Filename;
+                    queryNetaTag.DeepCopy(netaItem);
 
                     if (Title_SourceItems.TryGetValue(title, out var title_srcItems))
                     {

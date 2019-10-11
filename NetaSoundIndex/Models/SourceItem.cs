@@ -3,7 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace NetaSoundIndex.Models
+namespace Hollen9.NetaSoundIndex.Models
 {
     public class SourceItem
     {

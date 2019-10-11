@@ -1,6 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
-using NetaSoundIndex;
+using Hollen9.NetaSoundIndex;
 using Newtonsoft.Json;
 
 namespace NetaSoundIndexEngineTestConsole
