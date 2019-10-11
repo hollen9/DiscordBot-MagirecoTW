@@ -16,6 +16,7 @@ namespace Hollen9.NetaSoundIndex
         public Dictionary<string, IList<FileNetaTag>> Title_NetaTags { get; }
 
         public Dictionary<string, IList<NetaAccessIndex>> AliasKeyword_FileNetaTagIndex { get; }
+        public Dictionary<string, IList<NetaAccessIndex>> CharacterName_FileNetaTagIndex { get; }
 
         public NetaSoundIndexEngine(string base_path)
         {
@@ -25,6 +26,7 @@ namespace Hollen9.NetaSoundIndex
             Title_NetaTags = new Dictionary<string, IList<FileNetaTag>>();
 
             AliasKeyword_FileNetaTagIndex = new Dictionary<string, IList<NetaAccessIndex>>();
+            CharacterName_FileNetaTagIndex = new Dictionary<string, IList<NetaAccessIndex>>();
 
             if (!Directory.Exists(base_path))
             {
@@ -96,7 +98,7 @@ namespace Hollen9.NetaSoundIndex
                     // determine if it is sound file
                     if (Path.GetExtension(filename) == ".mp3")
                     {
-                        Console.WriteLine(filename_noext + "\n");
+                        /*Console.WriteLine(filename_noext + "\n");*/
                         var segments = filename_noext.Split(';');
                         var netaTag = new FileNetaTag();
 
@@ -104,7 +106,7 @@ namespace Hollen9.NetaSoundIndex
                         {    
                             netaTag.Filename = filename;
 
-                            if (segment.Length <= 1)
+                            if (segment.Length <= 0)
                             {
                                 continue;
                             }
@@ -139,6 +141,7 @@ namespace Hollen9.NetaSoundIndex
                             Title_NetaTags[title].Add(netaTag);
                         }
 
+                        //Indexing alias
                         if (netaTag.Alias != null)
                         {
                             Array.ForEach(netaTag.Alias, x =>
@@ -163,7 +166,31 @@ namespace Hollen9.NetaSoundIndex
                         }
                         else
                         {
-                            Console.WriteLine($"The NETA doesn't have alias naming tag: {netaTag.Filename}");
+                            Console.WriteLine($"Warning! The NETA doesn't have alias naming tag: {netaTag.Filename}");
+                        }
+
+                        //Indexing character name
+                        if (netaTag.Characters?.Length > 0)
+                        {
+                            Array.ForEach(netaTag.Characters, x => 
+                            {
+                                if (!CharacterName_FileNetaTagIndex.ContainsKey(x))
+                                {
+                                    CharacterName_FileNetaTagIndex.Add(x, new List<NetaAccessIndex>());
+                                }
+
+                                var indexInfo = new NetaAccessIndex()
+                                {
+                                    NetaTagIndex = Title_NetaTags[title].IndexOf(netaTag),
+                                    TitleIndex = SortedTitles.ContainsKey(title) ? SortedTitles[title] : -1
+                                };
+
+                                if (indexInfo.NetaTagIndex > -1 &&
+                                    indexInfo.TitleIndex > -1)
+                                {
+                                    CharacterName_FileNetaTagIndex[x].Add(indexInfo);
+                                }
+                            });
                         }
                     }
                 }
@@ -176,9 +203,14 @@ namespace Hollen9.NetaSoundIndex
         /// </summary>
         /// <param name="alias"></param>
         /// <returns></returns>
-        public List<QueryNetaTag> QueryNetaItemsByAlias(string alias)
+        public IList<QueryNetaTag> QueryNetaItemsByAlias(string alias)
         {
-            if (AliasKeyword_FileNetaTagIndex.TryGetValue(alias, out var possibleNetaItems))
+            return QueryNetaItemsBy_CommonLogic(alias, AliasKeyword_FileNetaTagIndex);
+        }
+
+        private IList<QueryNetaTag> QueryNetaItemsBy_CommonLogic(string queryText, IDictionary<string, IList<NetaAccessIndex>> accessIndeices)
+        {
+            if (accessIndeices.TryGetValue(queryText, out var possibleNetaItems))
             {
                 var queryNetaTags = new List<QueryNetaTag>();
 
@@ -195,7 +227,7 @@ namespace Hollen9.NetaSoundIndex
 
                     if (Title_SourceItems.TryGetValue(title, out var title_srcItems))
                     {
-                        if (title_srcItems.TryGetValue(netaItem.SourceGuid, out var sourceItem))
+                        if (title_srcItems.TryGetValue(netaItem.SourceGuid, out SourceItem sourceItem))
                         {
                             queryNetaTag.Source = sourceItem;
                         }

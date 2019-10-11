@@ -16,15 +16,23 @@ namespace NetaSoundIndexEngineTestConsole
         {
             NetaSound = new NetaSoundIndexEngine(@"C:\NetaSound");
 
-            var a = NetaSound.QueryNetaItemsByAlias("!");
-            if (a != null && a.Count > 0)
+            try
             {
-                Console.WriteLine($"QueryResult: \n");
-
-                foreach (var q in a)
+                var a = NetaSound.QueryNetaItemsByAlias("!");
+                if (a != null && a.Count > 0)
                 {
-                    Console.Write($"{q.Filename}, ");
+                    Console.WriteLine($"QueryResult: \n");
+
+                    foreach (var q in a)
+                    {
+
+                        Console.Write($"{q.Filename}, ");
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                throw;
             }
             
 
