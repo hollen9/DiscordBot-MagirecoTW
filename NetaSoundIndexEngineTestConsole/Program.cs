@@ -39,22 +39,26 @@ namespace NetaSoundIndexEngineTestConsole
                 sw.Stop();
                 if (qCharacters != null && qCharacters.Count > 0)
                 {
-                    Console.WriteLine($"\n\n@@\"七海やちよ\" 's QueryResult: \n");
+                    Console.WriteLine($"\n\n@@\"七海やちよ\" 's QueryResult ({sw.Elapsed}): \n");
                     foreach (var q in qCharacters)
                     {
                         Console.Write($"{q.Filename}, ");
                     }
                 }
+                sw.Reset();
 
+                sw.Start();
                 var qSourceTitle = NetaSound.QueryNetaItemsBySourceTitle("魔", true);
+                sw.Stop();
                 if (qSourceTitle != null && qSourceTitle.Count > 0)
                 {
-                    Console.WriteLine($"@@\"魔法少女\" 's QueryResult: \n");
+                    Console.WriteLine($"\n\n@@\"魔法少女\" 's QueryResult ({sw.Elapsed}): \n");
                     foreach (var q in qSourceTitle)
                     {
                         Console.Write($"{q.Filename}, ");
                     }
                 }
+                sw = null;
             }
             catch (Exception ex)
             {
