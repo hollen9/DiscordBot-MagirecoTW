@@ -18,10 +18,13 @@ namespace NetaSoundIndexEngineTestConsole
 
             try
             {
+                var sw = new System.Diagnostics.Stopwatch();
+                sw.Start();
                 var a = NetaSound.QueryNetaItemsByAlias("!");
+                sw.Stop();
                 if (a != null && a.Count > 0)
                 {
-                    Console.WriteLine($"=\"!\" 's QueryResult: \n");
+                    Console.WriteLine($"=\"!\" 's QueryResult ({sw.Elapsed}): \n");
 
                     foreach (var q in a)
                     {
@@ -29,21 +32,24 @@ namespace NetaSoundIndexEngineTestConsole
                         Console.Write($"{q.Filename}, ");
                     }
                 }
+                sw.Reset();
 
+                sw.Start();
                 var qCharacters = NetaSound.QueryNetaItemsByCharacter("七海やちよ");
+                sw.Stop();
                 if (qCharacters != null && qCharacters.Count > 0)
                 {
-                    Console.WriteLine($"@@\"七海やちよ\" 's QueryResult: \n");
+                    Console.WriteLine($"\n\n@@\"七海やちよ\" 's QueryResult: \n");
                     foreach (var q in qCharacters)
                     {
                         Console.Write($"{q.Filename}, ");
                     }
                 }
 
-                var qSourceTitle = NetaSound.QueryNetaItemsByCharacter("TVアニメ「マギアレコード 魔法少女まどか☆マギカ外伝」予告CM『マギレポ劇場』");
+                var qSourceTitle = NetaSound.QueryNetaItemsBySourceTitle("魔", true);
                 if (qSourceTitle != null && qSourceTitle.Count > 0)
                 {
-                    Console.WriteLine($"@@\"TVアニメ「マギアレコード 魔法少女まどか☆マギカ外伝」予告CM『マギレポ劇場』\" 's QueryResult: \n");
+                    Console.WriteLine($"@@\"魔法少女\" 's QueryResult: \n");
                     foreach (var q in qSourceTitle)
                     {
                         Console.Write($"{q.Filename}, ");

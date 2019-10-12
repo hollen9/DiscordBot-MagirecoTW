@@ -6,6 +6,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks; // *To do
+using Dasync.Collections;
+using System.Threading;
 
 namespace Hollen9.NetaSoundIndex
 {
@@ -15,10 +17,10 @@ namespace Hollen9.NetaSoundIndex
         public string Message { get; } // readonly
     }
 
-    public class NetaSoundIndexEngineOptions
-    {
-        public string[] AcceptFileExtensions = 
-    }
+    //public class NetaSoundIndexEngineOptions
+    //{
+    //    public string[] AcceptFileExtensions = 
+    //}
 
     // Declare
     public partial class NetaSoundIndexEngine
@@ -29,6 +31,8 @@ namespace Hollen9.NetaSoundIndex
         public Dictionary<string, IList<NetaAccessIndex>> AliasKeyword_FileNetaTagIndex { get; }
         public Dictionary<string, IList<NetaAccessIndex>> CharacterName_FileNetaTagIndex { get; }
         public Dictionary<string, IList<NetaAccessIndex>> SourceTitle_FileNetaTagIndex { get; }
+
+        //public Dictionary<string, int> SourceTitle_
 
         public delegate void LoggingHandler(object sender, LogEventArgs e);
         public event LoggingHandler Logging;
@@ -194,10 +198,46 @@ namespace Hollen9.NetaSoundIndex
         /// 按來源名稱檢索 (原文)
         /// </summary>
         /// <param name="sourceTitle"></param>
+        /// <param name="isSearch">詳細檢索 (CPU 運算會花時間)</param>
         /// <returns></returns>
         public IList<QueryNetaTag> QueryNetaItemsBySourceTitle(string sourceTitle, bool isSearch = false)
         {
-            return QueryNetaItemsBy_MultipleTagsCommonLogic(sourceTitle, SourceTitle_FileNetaTagIndex);
+            var rigid_result = QueryNetaItemsBy_MultipleTagsCommonLogic(sourceTitle, SourceTitle_FileNetaTagIndex);
+            if (rigid_result == null || rigid_result.Count == 0)
+            {
+                if (isSearch)
+                {
+                    var search_result = new List<QueryNetaTag>();
+                    foreach (var entry in SourceTitle_FileNetaTagIndex)
+                    {
+                        //出處標題 部分吻合
+                        if (entry.Key.Contains(sourceTitle))
+                        {
+                            var possibleAccessIndices = SourceTitle_FileNetaTagIndex[entry.Key];
+                            foreach (var possibleAccessIndex in possibleAccessIndices)
+                            {
+                                string title = SortedTitles.Keys[possibleAccessIndex.TitleIndex];
+                                var netaItem = Title_NetaTags[title][possibleAccessIndex.NetaTagIndex];
+                                var qNetaItem = new QueryNetaTag();
+                                qNetaItem.DeepCopy(netaItem);
+                                qNetaItem.Title = title;
+
+                                if (Title_SourceItems.TryGetValue(title, out var title_srcItems))
+                                {
+                                    if (title_srcItems.TryGetValue(netaItem.SourceGuid, out SourceItem sourceItem))
+                                    {
+                                        qNetaItem.Source = sourceItem;
+                                    }
+                                }
+
+                                search_result.Add(qNetaItem);
+                            }
+                        }
+                    }
+                    return search_result;
+                }
+            }
+            return rigid_result;
         }
 
         /// <summary>
@@ -268,9 +308,9 @@ namespace Hollen9.NetaSoundIndex
             {
                 Array.ForEach(array, x =>
                 {
-                    if (!CharacterName_FileNetaTagIndex.ContainsKey(x))
+                    if (!accessIndeices.ContainsKey(x))
                     {
-                        CharacterName_FileNetaTagIndex.Add(x, new List<NetaAccessIndex>());
+                        accessIndeices.Add(x, new List<NetaAccessIndex>());
                     }
 
                     var indexInfo = new NetaAccessIndex()
@@ -282,7 +322,7 @@ namespace Hollen9.NetaSoundIndex
                     if (indexInfo.NetaTagIndex > -1 &&
                         indexInfo.TitleIndex > -1)
                     {
-                        CharacterName_FileNetaTagIndex[x].Add(indexInfo);
+                        accessIndeices[x].Add(indexInfo);
                     }
                 });
             }
