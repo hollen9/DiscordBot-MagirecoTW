@@ -39,6 +39,16 @@ namespace NetaSoundIndexEngineTestConsole
                         Console.Write($"{q.Filename}, ");
                     }
                 }
+
+                var qSourceTitle = NetaSound.QueryNetaItemsByCharacter("TVアニメ「マギアレコード 魔法少女まどか☆マギカ外伝」予告CM『マギレポ劇場』");
+                if (qSourceTitle != null && qSourceTitle.Count > 0)
+                {
+                    Console.WriteLine($"@@\"TVアニメ「マギアレコード 魔法少女まどか☆マギカ外伝」予告CM『マギレポ劇場』\" 's QueryResult: \n");
+                    foreach (var q in qSourceTitle)
+                    {
+                        Console.Write($"{q.Filename}, ");
+                    }
+                }
             }
             catch (Exception ex)
             {

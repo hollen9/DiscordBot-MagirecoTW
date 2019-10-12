@@ -3,11 +3,23 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks; // *To do
 
 namespace Hollen9.NetaSoundIndex
 {
+    public class LogEventArgs
+    {
+        public LogEventArgs(string msg) { Message = msg; }
+        public string Message { get; } // readonly
+    }
+
+    public class NetaSoundIndexEngineOptions
+    {
+        public string[] AcceptFileExtensions = 
+    }
+
     // Declare
     public partial class NetaSoundIndexEngine
     {
@@ -17,6 +29,15 @@ namespace Hollen9.NetaSoundIndex
         public Dictionary<string, IList<NetaAccessIndex>> AliasKeyword_FileNetaTagIndex { get; }
         public Dictionary<string, IList<NetaAccessIndex>> CharacterName_FileNetaTagIndex { get; }
         public Dictionary<string, IList<NetaAccessIndex>> SourceTitle_FileNetaTagIndex { get; }
+
+        public delegate void LoggingHandler(object sender, LogEventArgs e);
+        public event LoggingHandler Logging;
+        protected virtual void OnLogging(string msg)
+        {
+            // Raise the event by using the () operator.
+            if (Logging != null)
+                Logging(this, new LogEventArgs(msg));
+        }
     }
 
     // Public Methods
@@ -64,7 +85,7 @@ namespace Hollen9.NetaSoundIndex
                         {
                             Title_SourceItems[title].Add(sourceEntry.Key, sourceEntry.Value);
 
-                            Console.WriteLine(
+                            OnLogging(
                                 $"Source GUID: {sourceEntry.Key}\n" +
                                 $"\tTitle: {sourceEntry.Value.Title}\n" +
                                 $"\t Urls: {string.Join(",", sourceEntry.Value.Urls)}\n\n"
@@ -73,11 +94,11 @@ namespace Hollen9.NetaSoundIndex
                     }
                     catch (JsonReaderException jsonReadEx)
                     {
-                        Console.WriteLine($"{seriesJsonPath} contains BAD JSON. Maybe it's due to file encoding error? It expects UTF-8.\nJsonReaderException\n{jsonReadEx}\n\n");
+                        OnLogging($"{seriesJsonPath} contains BAD JSON. Maybe it's due to file encoding error? It expects UTF-8.\nJsonReaderException\n{jsonReadEx}\n\n");
                     }
                     catch (JsonSerializationException jsonSerialEx)
                     {
-                        Console.WriteLine($"{seriesJsonPath} format is wrong. \nJsonSerializationException\n{jsonSerialEx}\n\n");
+                        OnLogging($"{seriesJsonPath} format is wrong. \nJsonSerializationException\n{jsonSerialEx}\n\n");
                     }
 
                 }
@@ -116,22 +137,22 @@ namespace Hollen9.NetaSoundIndex
                                 continue;
                             }
 
-
+                            string segmentWithoutPrefix = segment.Remove(0, 1);
                             switch (segment[0])
                             {
                                 case '@': // character's name
-                                    netaTag.Characters = segment.Remove(0, 1).Split(',');
+                                    netaTag.Characters = segmentWithoutPrefix.Split(',');
                                     break;
                                 case '$': // source guid
-                                    Guid.TryParse(segment.Remove(0, 1), out var guid);
+                                    Guid.TryParse(segmentWithoutPrefix, out var guid);
                                     netaTag.SourceGuid = guid;
                                     break;
                                 case '=': // alias and desciption
-                                    netaTag.Alias = segment.Remove(0, 1).Split(',');
+                                    netaTag.Alias = segmentWithoutPrefix.Split(',');
                                     break;
                                 case '&': // author Discord Id
                                     var id_list = new List<long>();
-                                    Array.ForEach(segment.Remove(0, 1).Split(','), x =>
+                                    Array.ForEach(segmentWithoutPrefix.Split(','), x =>
                                     {
                                         if (long.TryParse(x, out var id))
                                         {
@@ -145,11 +166,12 @@ namespace Hollen9.NetaSoundIndex
 
                             Title_NetaTags[title].Add(netaTag);
                         }
+                        segments = null;
 
                         //Indexing alias
                         IteratingIndex_ArrayCommonLogic(netaTag, title, netaTag.Alias, AliasKeyword_FileNetaTagIndex,
                             () => { return netaTag.Alias != null; },
-                            () => Console.WriteLine($"Warning! The NETA doesn't have alias naming tag: {netaTag.Filename}"));
+                            () => OnLogging($"Warning! The NETA doesn't have alias naming tag: {netaTag.Filename}"));
 
                         //Indexing character name
                         IteratingIndex_ArrayCommonLogic(netaTag, title, netaTag.Characters, CharacterName_FileNetaTagIndex,
@@ -173,7 +195,7 @@ namespace Hollen9.NetaSoundIndex
         /// </summary>
         /// <param name="sourceTitle"></param>
         /// <returns></returns>
-        public IList<QueryNetaTag> QueryNetaItemsBySourceTitle(string sourceTitle)
+        public IList<QueryNetaTag> QueryNetaItemsBySourceTitle(string sourceTitle, bool isSearch = false)
         {
             return QueryNetaItemsBy_MultipleTagsCommonLogic(sourceTitle, SourceTitle_FileNetaTagIndex);
         }
