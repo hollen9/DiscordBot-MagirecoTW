@@ -142,60 +142,55 @@ namespace Hollen9.NetaSoundIndex
                         }
 
                         //Indexing alias
-                        if (netaTag.Alias != null)
-                        {
-                            Array.ForEach(netaTag.Alias, x =>
-                            {
-                                if (!AliasKeyword_FileNetaTagIndex.ContainsKey(x))
-                                {
-                                    AliasKeyword_FileNetaTagIndex.Add(x, new List<NetaAccessIndex>());
-                                }
-
-                                var indexInfo = new NetaAccessIndex()
-                                {
-                                    NetaTagIndex = Title_NetaTags[title].IndexOf(netaTag),
-                                    TitleIndex = SortedTitles.ContainsKey(title) ? SortedTitles[title] : -1
-                                };
-
-                                if (indexInfo.NetaTagIndex > -1 &&
-                                    indexInfo.TitleIndex > -1)
-                                {
-                                    AliasKeyword_FileNetaTagIndex[x].Add(indexInfo);
-                                }
-                            });
-                        }
-                        else
-                        {
-                            Console.WriteLine($"Warning! The NETA doesn't have alias naming tag: {netaTag.Filename}");
-                        }
+                        IteratingIndex_ArrayCommonLogic(netaTag, title, netaTag.Alias, AliasKeyword_FileNetaTagIndex,
+                            () => { return netaTag.Alias != null; },
+                            () => Console.WriteLine($"Warning! The NETA doesn't have alias naming tag: {netaTag.Filename}"));
 
                         //Indexing character name
-                        if (netaTag.Characters?.Length > 0)
-                        {
-                            Array.ForEach(netaTag.Characters, x => 
-                            {
-                                if (!CharacterName_FileNetaTagIndex.ContainsKey(x))
-                                {
-                                    CharacterName_FileNetaTagIndex.Add(x, new List<NetaAccessIndex>());
-                                }
-
-                                var indexInfo = new NetaAccessIndex()
-                                {
-                                    NetaTagIndex = Title_NetaTags[title].IndexOf(netaTag),
-                                    TitleIndex = SortedTitles.ContainsKey(title) ? SortedTitles[title] : -1
-                                };
-
-                                if (indexInfo.NetaTagIndex > -1 &&
-                                    indexInfo.TitleIndex > -1)
-                                {
-                                    CharacterName_FileNetaTagIndex[x].Add(indexInfo);
-                                }
-                            });
-                        }
+                        IteratingIndex_ArrayCommonLogic(netaTag, title, netaTag.Characters, CharacterName_FileNetaTagIndex,
+                            () => { return netaTag.Characters?.Length > 0; });
                     }
                 }
             }
             // The above code already finished filling: TitleSourceItems, TitleNetaTags   
+        }
+
+        //public IList<QueryNetaTag> QueryNetaItemsByTitle(string title)
+        //{
+
+        //}
+
+        private void IteratingIndex_ArrayCommonLogic(FileNetaTag netaTag, string title, string[] array,
+            IDictionary<string, IList<NetaAccessIndex>> accessIndeices, Func<bool> condition,
+            Action actionIfConditionNotMeet = null)
+        {
+            bool conditionResult = condition.Invoke();
+            if (conditionResult)
+            {
+                Array.ForEach(array, x =>
+                {
+                    if (!CharacterName_FileNetaTagIndex.ContainsKey(x))
+                    {
+                        CharacterName_FileNetaTagIndex.Add(x, new List<NetaAccessIndex>());
+                    }
+
+                    var indexInfo = new NetaAccessIndex()
+                    {
+                        NetaTagIndex = Title_NetaTags[title].IndexOf(netaTag),
+                        TitleIndex = SortedTitles.ContainsKey(title) ? SortedTitles[title] : -1
+                    };
+
+                    if (indexInfo.NetaTagIndex > -1 &&
+                        indexInfo.TitleIndex > -1)
+                    {
+                        CharacterName_FileNetaTagIndex[x].Add(indexInfo);
+                    }
+                });
+            }
+            else if (actionIfConditionNotMeet != null)
+            {
+                actionIfConditionNotMeet.Invoke();
+            }
         }
 
         /// <summary>
@@ -205,15 +200,15 @@ namespace Hollen9.NetaSoundIndex
         /// <returns></returns>
         public IList<QueryNetaTag> QueryNetaItemsByAlias(string alias)
         {
-            return QueryNetaItemsBy_CommonLogic(alias, AliasKeyword_FileNetaTagIndex);
+            return QueryNetaItemsBy_MultipleTagsCommonLogic(alias, AliasKeyword_FileNetaTagIndex);
         }
 
         public IList<QueryNetaTag> QueryNetaItemsByCharacter(string characterName)
         {
-            return QueryNetaItemsBy_CommonLogic(characterName, CharacterName_FileNetaTagIndex);
+            return QueryNetaItemsBy_MultipleTagsCommonLogic(characterName, CharacterName_FileNetaTagIndex);
         }
 
-        private IList<QueryNetaTag> QueryNetaItemsBy_CommonLogic(string queryText, IDictionary<string, IList<NetaAccessIndex>> accessIndeices)
+        private IList<QueryNetaTag> QueryNetaItemsBy_MultipleTagsCommonLogic(string queryText, IDictionary<string, IList<NetaAccessIndex>> accessIndeices)
         {
             if (accessIndeices.TryGetValue(queryText, out var possibleNetaItems))
             {
