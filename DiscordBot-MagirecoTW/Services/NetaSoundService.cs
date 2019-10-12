@@ -14,6 +14,7 @@ using System.Threading.Tasks;
 using NAudio;
 using NAudio.Wave;
 using NAudio.CoreAudioApi;
+using Hollen9.NetaSoundIndex;
 
 namespace MitamaBot.Services
 {
@@ -27,6 +28,12 @@ namespace MitamaBot.Services
 
         private IAudioClient UsingAudioClient { get; set; }
         private IVoiceChannel UsingVoiceChannel { get; set; }
+        public NetaSoundIndexEngine NetaSoundIndex { get; set; }
+
+        public NetaSoundService()
+        {
+            NetaSoundIndex = new NetaSoundIndexEngine(@"C:\NetaSound");
+        }
 
         //public async Task JoinAudio(IGuild guild, IVoiceChannel target)
         //{
@@ -124,7 +131,7 @@ namespace MitamaBot.Services
         }
 
 
-        public async Task AutoPlayAsync(IVoiceState userVoiceState, IMessageChannel userChannel)
+        public async Task PlayByAliasAsync(IVoiceState userVoiceState, IMessageChannel userChannel, string alias)
         {
             if (UsingAudioClient == null)
             {
@@ -139,8 +146,22 @@ namespace MitamaBot.Services
                     await JoinAudio(userVoiceState.VoiceChannel);
                 }
             }
+            var queryNetaTags = NetaSoundIndex.QueryNetaItemsByAlias(alias);
+            var random = new Random();
+            var selectedNeta = queryNetaTags[random.Next(0, queryNetaTags.Count - 1)];
 
-            await SendAudioAsync(userChannel, @"F:\Liberary\GameFiles\SteamLib\steamapps\common\Counter-Strike Global Offensive\csgo\sound\planetia\mw3\pmc_win_1.mp3");
+            
+
+            StringBuilder msgToSend = new StringBuilder(string.Join(", ", selectedNeta.Characters));
+            string relative_uri = Path.GetFileName(Path.GetDirectoryName(selectedNeta.Filename)) + "/" + Path.GetFileName(selectedNeta.Filename);
+
+            if (NetaSoundIndex.Filename_CaptionItem.TryGetValue(relative_uri, out var captionItem) && captionItem != null)
+            {
+                msgToSend.Append(": ");
+                msgToSend.Append(captionItem.Raw);
+            }
+            await userChannel.SendMessageAsync($"{msgToSend.ToString()}");
+            await SendAudioAsync(userChannel, selectedNeta.Filename);
         }
     }
 }

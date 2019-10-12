@@ -32,10 +32,10 @@ namespace MitamaBot.Modules
         //    await NetaSoundService.SendAudioAsync(Context.Guild, Context.Channel, @"F:\Liberary\GameFiles\SteamLib\steamapps\common\Counter-Strike Global Offensive\csgo\sound\planetia\mw3\pmc_win_1.mp3");
         //}
 
-        [Command("autotest", RunMode = RunMode.Async)]
-        public async Task AutoTest(IVoiceChannel channel = null)
+        [Command("s", RunMode = RunMode.Async)]
+        public async Task PlayNetaWithAliasAsync(string alias, IVoiceChannel channel = null)
         {
-            await NetaSoundService.AutoPlayAsync((Context.User as IVoiceState), Context.Channel);
+            await NetaSoundService.PlayByAliasAsync((Context.User as IVoiceState), Context.Channel, alias);
         }
     }
 }

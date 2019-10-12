@@ -25,12 +25,13 @@ namespace Hollen9.NetaSoundIndex
     // Declare
     public partial class NetaSoundIndexEngine
     {
-        public SortedList<string, int> SortedTitles { get; }
-        public Dictionary<string, IDictionary<Guid, SourceItem>> Title_SourceItems { get; }
-        public Dictionary<string, IList<FileNetaTag>> Title_NetaTags { get; }
-        public Dictionary<string, IList<NetaAccessIndex>> AliasKeyword_FileNetaTagIndex { get; }
-        public Dictionary<string, IList<NetaAccessIndex>> CharacterName_FileNetaTagIndex { get; }
-        public Dictionary<string, IList<NetaAccessIndex>> SourceTitle_FileNetaTagIndex { get; }
+        private SortedList<string, int> SortedTitles { get; }
+        private Dictionary<string, IDictionary<Guid, SourceItem>> Title_SourceItems { get; }
+        private Dictionary<string, IList<FileNetaTag>> Title_NetaTags { get; }
+        private Dictionary<string, IList<NetaAccessIndex>> AliasKeyword_FileNetaTagIndex { get; }
+        private Dictionary<string, IList<NetaAccessIndex>> CharacterName_FileNetaTagIndex { get; }
+        private Dictionary<string, IList<NetaAccessIndex>> SourceTitle_FileNetaTagIndex { get; }
+        public Dictionary<string, CaptionItem> Filename_CaptionItem { get; set; }
 
         //public Dictionary<string, int> SourceTitle_
 
@@ -62,6 +63,29 @@ namespace Hollen9.NetaSoundIndex
             {
                 throw new DirectoryNotFoundException($"{base_path} doesn't exist!");
             }
+
+            var fileToCaptionJsonPath = Path.Combine(base_path, "fileToCaption.json");
+            if (File.Exists(fileToCaptionJsonPath))
+            {
+                try
+                {
+                    var jsonText = File.ReadAllText(fileToCaptionJsonPath, Encoding.UTF8);
+                    Filename_CaptionItem = JsonConvert.DeserializeObject<Dictionary<string, CaptionItem>>(jsonText) ?? new Dictionary<string, CaptionItem>();
+                }
+                catch (JsonReaderException jsonReadEx)
+                {
+                    OnLogging($"{fileToCaptionJsonPath} contains BAD JSON. Maybe it's due to file encoding error? It expects UTF-8.\nJsonReaderException\n{jsonReadEx}\n\n");
+                }
+                catch (JsonSerializationException jsonSerialEx)
+                {
+                    OnLogging($"{fileToCaptionJsonPath} format is wrong. \nJsonSerializationException\n{jsonSerialEx}\n\n");
+                }
+            }
+
+
+
+
+
             var subDirs = Directory.GetDirectories(base_path);
 
             foreach (var subDir in subDirs)
@@ -122,7 +146,6 @@ namespace Hollen9.NetaSoundIndex
                 var files = Directory.GetFiles(subDir);
                 foreach (var filename in files)
                 {
-
                     var filename_noext = Path.GetFileNameWithoutExtension(filename);
 
                     // determine if it is sound file
