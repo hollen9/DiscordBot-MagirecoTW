@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace MitamaBot.Modules
 {
-    public class GameInfoModule : ModuleBase<SocketCommandContext>
+    public class GameInfoModule : MyModuleBase
     {
         public GameInfoService GameInfoSvc { get; set; }
         public ResponsiveService ReponseSvc { get; set; }

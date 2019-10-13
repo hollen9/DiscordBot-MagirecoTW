@@ -7,7 +7,7 @@ using MitamaBot.Services;
 namespace MitamaBot.Modules
 {
     // Modules must be public and inherit from an IModuleBase
-    public class PublicModule : ModuleBase<SocketCommandContext>
+    public class PublicModule : MyModuleBase
     {
         // Dependency Injection will fill this value in for us
         public PictureService PictureService { get; set; }

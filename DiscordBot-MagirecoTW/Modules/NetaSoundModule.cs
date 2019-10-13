@@ -7,7 +7,7 @@ using MitamaBot.Services;
 namespace MitamaBot.Modules
 {
     // Modules must be public and inherit from an IModuleBase
-    public class NetaSoundModule : ModuleBase<SocketCommandContext>
+    public class NetaSoundModule : MyModuleBase
     {
         // Dependency Injection will fill this value in for us
         public NetaSoundService NetaSoundSvc { get; set; }
