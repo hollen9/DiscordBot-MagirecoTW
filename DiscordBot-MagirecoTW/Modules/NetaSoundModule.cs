@@ -10,7 +10,7 @@ namespace MitamaBot.Modules
     public class NetaSoundModule : ModuleBase<SocketCommandContext>
     {
         // Dependency Injection will fill this value in for us
-        public NetaSoundService NetaSoundService { get; set; }
+        public NetaSoundService NetaSoundSvc { get; set; }
 
         //// The command's Run Mode MUST be set to RunMode.Async, otherwise, being connected to a voice channel will block the gateway thread.
         //[Command("join", RunMode = RunMode.Async)]
@@ -35,7 +35,7 @@ namespace MitamaBot.Modules
         [Command("s", RunMode = RunMode.Async)]
         public async Task PlayNetaWithAliasAsync(string alias, IVoiceChannel channel = null)
         {
-            await NetaSoundService.PlayByAliasAsync((Context.User as IVoiceState), Context.Channel, alias);
+            await NetaSoundSvc.PlayByAliasAsync((Context.User as IVoiceState), Context.Channel, alias);
         }
     }
 }

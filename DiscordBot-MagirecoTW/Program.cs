@@ -9,7 +9,7 @@ using MitamaBot.Services;
 using Microsoft.Extensions.Configuration;
 using System.IO;
 using System.Linq;
-
+using MitamaBot.Services.Backgrounds;
 
 namespace MitamaBot
 {
@@ -83,12 +83,16 @@ namespace MitamaBot
         {
             return new ServiceCollection()
                 .AddSingleton(_config)
+                .AddSingleton<LoggingService>()
+
                 .AddSingleton<DiscordSocketClient>()
                 .AddSingleton<CommandService>()
                 .AddSingleton<CommandHandlingService>()
-                .AddSingleton<NetaSoundService>()
                 .AddSingleton<HttpClient>()
                 .AddSingleton<PictureService>()
+                .AddSingleton<ResponsiveService>()
+                .AddSingleton<GameInfoService>()
+                .AddSingleton<NetaSoundService>()
                 .BuildServiceProvider();
         }
     }

@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading.Tasks;
 using Discord;
@@ -9,6 +10,8 @@ namespace MitamaBot.DataModels.Magireco
 {
     public class PlayerStat
     {
+        [LiteDB.BsonId(true)]
+        public Guid Id { get; set; }
         public string GameId { get; set; }
         public string GameHandle { get; set; }
         public List<long> Following { get; set; }

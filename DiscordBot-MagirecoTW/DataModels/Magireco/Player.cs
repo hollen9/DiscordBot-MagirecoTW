@@ -10,6 +10,7 @@ namespace MitamaBot.DataModels.Magireco
 {
     public class Player
     {
+        [LiteDB.BsonId(false)]
         public long DiscordId { get; set; }
         public string Description { get; set; }
         public string FriendPolicy { get; set; }
