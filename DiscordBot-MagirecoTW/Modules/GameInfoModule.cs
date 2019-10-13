@@ -29,9 +29,17 @@ namespace MitamaBot.Modules
             }
         }
 
-        public async Task DeleteServerAsync()
+        [Command("server-del", RunMode = RunMode.Async)]
+        public async Task DeleteServerAsync(string serverKey)
         {
-
+            if (GameInfoSvc.DeleteServer(serverKey))
+            {
+                await ReplyAsync($"已刪除 `{serverKey}`。");
+            }
+            else
+            {
+                await ReplyAsync($"不存在 `{serverKey}`。");
+            }
         }
 
         [Command("server-add", RunMode = RunMode.Async)]
