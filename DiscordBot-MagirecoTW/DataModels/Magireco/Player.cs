@@ -11,9 +11,8 @@ namespace MitamaBot.DataModels.Magireco
     public class Player
     {
         [LiteDB.BsonId(false)]
-        public long DiscordId { get; set; }
+        public ulong DiscordId { get; set; }
         public string Description { get; set; }
-        public string FriendPolicy { get; set; }
         public Dictionary<string, PlayerStat> ServerKey_PlayerStats { get; set; }
     }
 }

@@ -5,6 +5,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -67,6 +68,43 @@ namespace MitamaBot.Services
             };
 
             return await WaitAsync(tcs, expireAfter);
+        }
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="end">Min is 0</param>
+        /// <param name="start">Max is 10</param>
+        /// <param name="showCancelButton">Is showing the cancel button</param>
+        /// <returns></returns>
+        public List<Discord.Emoji> GetNumberOptionsEmojis(byte end, byte start = 1, bool showCancelButton = true)
+        {
+            var emojiOptionCancel = new Discord.Emoji("❎");
+            var emojiNumberOptions = new Discord.Emoji[]
+            {
+                new Discord.Emoji("0⃣"),
+                new Discord.Emoji("1⃣"),
+                new Discord.Emoji("2⃣"),
+                new Discord.Emoji("3⃣"),
+                new Discord.Emoji("4⃣"),
+                new Discord.Emoji("5⃣"),
+                new Discord.Emoji("6⃣"),
+                new Discord.Emoji("7⃣"),
+                new Discord.Emoji("8⃣"),
+                new Discord.Emoji("9⃣"),
+                new Discord.Emoji("🔟"),
+            };
+
+            var result = new List<Discord.Emoji>();
+            for (byte i = start; i <= end; i++)
+            {
+                result.Add(emojiNumberOptions[i]);
+            }
+            if (showCancelButton)
+            {
+                result.Add(emojiOptionCancel);
+            }
+            return result;
         }
     }
 

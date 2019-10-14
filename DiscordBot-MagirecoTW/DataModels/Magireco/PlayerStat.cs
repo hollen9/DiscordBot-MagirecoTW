@@ -14,6 +14,7 @@ namespace MitamaBot.DataModels.Magireco
         public Guid Id { get; set; }
         public string GameId { get; set; }
         public string GameHandle { get; set; }
+        public string Description { get; set; }
         public List<long> Following { get; set; }
         public List<long> Follower { get; set; }
     }

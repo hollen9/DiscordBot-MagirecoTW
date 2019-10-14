@@ -45,7 +45,23 @@ namespace MitamaBot.Services
         {
             return LiteCollection_Servers.FindAll();
         }
-        
+        public bool UpsertPlayer(Player player)
+        {
+            return LiteCollection_Players.Upsert(player);
+        }
+        public bool DeletePlayer(long playerKey)
+        {
+            return LiteCollection_Players.Delete(playerKey);
+        }
+        public IEnumerable<Player> GetPlayers()
+        {
+            return LiteCollection_Players.FindAll();
+        }
+        public Player GetPlayer(ulong id)
+        {
+            return LiteCollection_Players.FindById(id);
+        }
+
 
         //private void Log_Logging(string msg)
         //{
