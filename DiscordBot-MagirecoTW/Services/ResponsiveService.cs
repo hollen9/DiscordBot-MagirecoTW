@@ -42,9 +42,9 @@ namespace MitamaBot.Services
             return default;
         }
 
-        public async Task<SocketMessage> WaitForMessageAsync(Func<SocketMessage, bool> condition, TimeSpan? expireAfter = null)
+        public async Task<SocketMessage> WaitForMessageAsync(Func<SocketMessage, bool> condition, TimeSpan? expireAfter = null, TaskCompletionSource<SocketMessage> tcs = null)
         {
-            var tcs = new TaskCompletionSource<SocketMessage>();
+            if (tcs == null) tcs = new TaskCompletionSource<SocketMessage>();
 
             _discord.MessageReceived += (msg) =>
             {
@@ -56,9 +56,9 @@ namespace MitamaBot.Services
             return await WaitAsync(tcs, expireAfter);
         }
 
-        public async Task<SocketReaction> WaitForReactionAsync(Func<Cacheable<IUserMessage, ulong>, ISocketMessageChannel, SocketReaction, bool> condition, TimeSpan? expireAfter = null)
+        public async Task<SocketReaction> WaitForReactionAsync(Func<Cacheable<IUserMessage, ulong>, ISocketMessageChannel, SocketReaction, bool> condition, TimeSpan? expireAfter = null, TaskCompletionSource<SocketReaction> tcs = null)
         {
-            var tcs = new TaskCompletionSource<SocketReaction>();
+            if (tcs == null) tcs = new TaskCompletionSource<SocketReaction>();
 
             _discord.ReactionAdded += (cache, ch, r) =>
             {

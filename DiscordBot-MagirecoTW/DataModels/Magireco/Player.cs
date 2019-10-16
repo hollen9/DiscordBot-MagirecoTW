@@ -8,11 +8,26 @@ using MitamaBot.Services;
 
 namespace MitamaBot.DataModels.Magireco
 {
-    public class Player
+    public partial class Player
     {
         [LiteDB.BsonId(false)]
-        public ulong DiscordId { get; set; }
+        public string DiscordId { get; set; }
         public string Description { get; set; }
         public Dictionary<string, PlayerStat> ServerKey_PlayerStats { get; set; }
+    }
+
+    [LiteDB.BsonIgnore]
+    public partial class Player
+    {
+        public Player() { }
+
+        [LiteDB.BsonIgnore]
+        public Player(string discordId)
+        {
+            DiscordId = discordId;
+
+            Description = string.Empty;
+            ServerKey_PlayerStats = new Dictionary<string, PlayerStat>();
+        }
     }
 }

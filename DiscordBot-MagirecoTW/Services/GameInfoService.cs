@@ -21,12 +21,19 @@ namespace MitamaBot.Services
         public GameInfoService(IConfiguration config)
         {
             _config = config;
-            LiteDb_MagirecoInfo = new LiteDatabase(_config.GetConnectionString("LiteDb_MagirecoStat"));
+            LiteDb_MagirecoInfo = new LiteDatabase(_config.GetConnectionString("LiteDb_MagirecoStat"), null, new Logger(Logger.COMMAND, str=> { Console.WriteLine(str); }));
+            //LiteDb_MagirecoInfo.Log.Logging += LiteDb_Logger_Logging;
+
 
             LiteCollection_Servers = LiteDb_MagirecoInfo.GetCollection<Server>();
             LiteCollection_Players = LiteDb_MagirecoInfo.GetCollection<Player>();
             LiteCollection_PlayerStats = LiteDb_MagirecoInfo.GetCollection<PlayerStat>();
         }
+
+        //private void LiteDb_Logger_Logging(string obj)
+        //{
+        //    Console.WriteLine($"[LiteDB_MagirecoStat] {obj}");
+        //}
 
         //public bool AddDailyStats(string server, ushort supportPt, ushort mirrorWin, ushort mirrorLose)
         //{
@@ -35,7 +42,21 @@ namespace MitamaBot.Services
 
         public bool UpsertServer(Server server)
         {
-            return LiteCollection_Servers.Upsert(server);
+            var existed = LiteCollection_Servers.FindById(server.ServerKey);
+            if (existed == null)
+            {
+                LiteCollection_Servers.Insert(server);
+                return true;
+            }
+            else if (server != existed)
+            {
+                var result = LiteCollection_Servers.Update(server);
+                return result;
+            }
+            else
+            {
+                return false;
+            }
         }
         public bool DeleteServer(string serverKey)
         {
@@ -47,19 +68,35 @@ namespace MitamaBot.Services
         }
         public bool UpsertPlayer(Player player)
         {
-            return LiteCollection_Players.Upsert(player);
+            var existed = LiteCollection_Players.FindById(player.DiscordId);
+            if (existed == null)
+            {
+                LiteCollection_Players.Insert(player);
+                return true;
+            }
+            else if (player != existed)
+            {
+                var result = LiteCollection_Players.Update(player);
+                return result;
+            }
+            else
+            {
+                return false;
+            }
         }
-        public bool DeletePlayer(long playerKey)
+        public bool DeletePlayer(string playerKey)
         {
             return LiteCollection_Players.Delete(playerKey);
         }
         public IEnumerable<Player> GetPlayers()
         {
-            return LiteCollection_Players.FindAll();
+            var players = LiteCollection_Players.FindAll();
+            return players;
         }
-        public Player GetPlayer(ulong id)
+        public Player GetPlayer(string id)
         {
-            return LiteCollection_Players.FindById(id);
+            var player = LiteCollection_Players.FindById(id);
+            return player;
         }
 
 

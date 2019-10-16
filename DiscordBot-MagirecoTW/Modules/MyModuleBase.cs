@@ -21,5 +21,8 @@ namespace MitamaBot.Modules
 
         public Task<RestUserMessage> ReplyFileAsync(Stream stream, string fileName, string message = null)
             => Context.Channel.SendFileAsync(stream, fileName, message, false, null);
+
+        public Task<IUserMessage> ReplyMentionAsync(string content)
+            => ReplyAsync($"{Context.User.Mention} {content}", false, null, null);
     }
 }
