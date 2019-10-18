@@ -90,7 +90,7 @@ namespace MitamaBot
                 .AddSingleton<HttpClient>()
                 .AddSingleton<PictureService>()
                 .AddSingleton<ResponsiveService>()
-                .AddSingleton<GameInfoService>()
+                .AddSingleton<Services.DataStore.MagirecoInfoService>()
                 .AddSingleton<NetaSoundService>()
                 .BuildServiceProvider();
         }
