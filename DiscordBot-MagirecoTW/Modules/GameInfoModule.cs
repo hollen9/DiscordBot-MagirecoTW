@@ -510,33 +510,6 @@ namespace MitamaBot.Modules
                 {
                     await confirmMsg.RemoveAllReactionsAsync();
                 }
-
-                var ract = await ReponseSvc.WaitForReactionAsync((cache, ch, r) =>
-                {
-                    return ch.Id == Context.Channel.Id &&
-                    (r.Emote.Name == "✅" || r.Emote.Name == "❎");
-                });
-
-                if (ract.Emote.Name == "✅")
-                {
-                    currentPl.Description = userAnsMsg.Content;
-                    
-                    if (MagirecoInfoSvc.Player.UpsertItem(currentPl, currentPl.DiscordId))
-                    {
-                        await ReplyMentionAsync($"個人簡介更新成功。");
-                    }
-                    else
-                    {
-                        await ReplyMentionAsync($":warning: 個人簡介更新失敗。");
-                    }
-                    
-                }
-                else
-                {
-                    await ReplyAsync($"已放棄變更個人簡介。");
-                    currentPl = null;
-                }
-                await confirmMsg.DeleteAsync();
                 return;
             }
         }
