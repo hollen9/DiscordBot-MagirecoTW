@@ -257,7 +257,7 @@ namespace MitamaBot.Modules
             Server choseServer = null;
             string preContent = null;
 
-            //詢問要編輯哪個帳號，還是新增帳號
+            //詢問要看哪個伺服器的帳號呢
             try
             {
                 //Fire-and-forget (without waiting for completion)

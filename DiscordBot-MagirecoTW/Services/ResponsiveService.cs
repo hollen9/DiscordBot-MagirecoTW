@@ -103,6 +103,30 @@ namespace MitamaBot.Services
             {
                 tcs = new TaskCompletionSource<SocketMessageOrReaction>();
             }
+
+            int endNumber;
+            if (startNumber == 0)
+            {
+                if (isCancellable)
+                {
+                    endNumber = optionEmojis.Count - 2;
+                }
+                else
+                {
+                    endNumber = optionEmojis.Count - 1;
+                }
+            }
+            else
+            {
+                if (isCancellable)
+                {
+                    endNumber = optionEmojis.Count + startNumber - 2;
+                }
+                else
+                {
+                    endNumber = optionEmojis.Count + startNumber - 1;
+                }
+            }
             
             int? userChoose = null;
 
@@ -121,7 +145,7 @@ namespace MitamaBot.Services
                     return Task.CompletedTask;
                 }
 
-                if (!int.TryParse(content, out int outValue))
+                if (!int.TryParse(content, out int outValue) || outValue < startNumber || outValue > endNumber)
                 {
                     return Task.CompletedTask;
                 }
@@ -307,6 +331,10 @@ namespace MitamaBot.Services
             var result = new List<Discord.Emoji>();
             for (int i = start; i <= end; i++)
             {
+                if (start == 0 && i == end)
+                {
+                    break;
+                }
                 result.Add(emojiNumberOptions[i]);
             }
             if (showCancelButton)
