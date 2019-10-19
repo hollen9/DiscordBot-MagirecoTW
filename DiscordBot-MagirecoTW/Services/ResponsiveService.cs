@@ -18,6 +18,13 @@ namespace MitamaBot.Services
         private readonly ResponsiveOptions _options;
         private readonly DiscordSocketClient _discord;
 
+        private readonly string[] yesStrings = { "Yes", "Y", "是" };
+        private readonly string[] noStrings = { "No", "N", "否" };
+        private readonly Emoji cancelEmoji = new Discord.Emoji("❎");
+        private readonly Emoji yesEmoji = new Discord.Emoji("⭕");
+        private readonly Emoji noEmoji = new Discord.Emoji("❌");
+        //private Emoji[] yesNoEmojis => new Emoji[] { yesEmoji, noEmoji, cancelEmoji};
+
         public ResponsiveService(/*ILogger<ResponsiveService> logger, */IConfiguration config, DiscordSocketClient discord)
         {
             //_logger = logger;
@@ -154,7 +161,7 @@ namespace MitamaBot.Services
             if (result == null)
             {
                 //逾時未作答，或發生錯誤
-                return null;
+                throw new TimeoutException("逾時未作答");
             }
             else if (result.Message != null || result.Reaction != null)
             {
@@ -162,8 +169,112 @@ namespace MitamaBot.Services
             }
             else
             {
-                //Runtime 沒有發生錯誤，卻出現不應該出現的情形: 有收到答案紙，但兩個答案都是空白的。
-                return int.MinValue;
+                throw new Exception("Runtime 沒有發生錯誤，卻出現不應該出現的情形: 有收到答案紙，但兩個答案都是空白的。");
+            }
+        }
+
+        public async Task<bool?> WaitForBooleanAnswerAsync(
+            ulong channelId,
+            bool isCancellable = false,
+            string[] msgCancelKeywords = null,
+            TimeSpan? expireAfter = null,
+            TaskCompletionSource<SocketMessageOrReaction> tcs = null)
+        {
+            if (tcs == null)
+            {
+                tcs = new TaskCompletionSource<SocketMessageOrReaction>();
+            }
+
+            bool? userChoose = null;
+
+            _discord.MessageReceived += (x) =>
+            {
+                if (x.Channel.Id != channelId || x.Author.IsBot || x.Author.IsWebhook)
+                {
+                    return Task.CompletedTask;
+                }
+                string content = x.Content.Trim().ToLower();
+
+                if (isCancellable && msgCancelKeywords != null && msgCancelKeywords.Contains(content))
+                {
+                    userChoose = null;
+                    tcs.TrySetResult(new SocketMessageOrReaction() { Message = x });
+                    return Task.CompletedTask;
+                }
+                bool hasYesStr = yesStrings.Contains(content),
+                     hasNoStr = noStrings.Contains(content);
+
+                if (!bool.TryParse(content, out bool outValue) && !hasYesStr && !hasNoStr)
+                {
+                    return Task.CompletedTask;
+                }
+                else
+                {
+                    userChoose = outValue;
+                }
+                if (userChoose == null)
+                {
+                    if (hasYesStr)
+                    {
+                        userChoose = true;
+                    }
+                    else if (hasNoStr)
+                    {
+                        userChoose = false;
+                    }
+                    else
+                    {
+                        return Task.CompletedTask; 
+                        // Ignore and abandon this value
+                    }
+                }
+                
+                tcs.TrySetResult(new SocketMessageOrReaction() { Message = x });
+                return Task.CompletedTask;
+
+            };
+
+            _discord.ReactionAdded += (cache, ch, r) =>
+            {
+                if (ch.Id != channelId || r.User.Value.IsBot || r.User.Value.IsWebhook)
+                {
+                    return Task.CompletedTask;
+                }
+
+                if (isCancellable && r.Emote.Name == cancelEmoji.Name)
+                {
+                    userChoose = null;
+                }
+                else if (r.Emote.Name == yesEmoji.Name)
+                {
+                    userChoose = true;
+                }
+                else if (r.Emote.Name == noEmoji.Name)
+                {
+                    userChoose = false;
+                }
+                else
+                {
+                    //Ignore as not setting task result;-
+                    return Task.CompletedTask;
+                }
+                tcs.TrySetResult(new SocketMessageOrReaction() { Reaction = r });
+                return Task.CompletedTask;
+            };
+
+            var result = await WaitAsync(tcs, expireAfter);
+            if (result == null)
+            {
+                //逾時未作答，或發生錯誤
+                throw new TimeoutException("逾時未作答");
+            }
+            else if (result.Message != null || result.Reaction != null)
+            {
+                return userChoose;
+            }
+            else
+            {
+                throw new Exception("Runtime 沒有發生錯誤，卻出現不應該出現的情形: 有收到答案紙，但兩個答案都是空白的。");
             }
         }
 
@@ -185,7 +296,7 @@ namespace MitamaBot.Services
                 end = 10;
             }
 
-            var emojiOptionCancel = new Discord.Emoji("❎");
+            var emojiOptionCancel = cancelEmoji;
             var emojiNumberOptions = new Discord.Emoji[]
             {
                 new Discord.Emoji("0⃣"),

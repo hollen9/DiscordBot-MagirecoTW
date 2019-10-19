@@ -183,34 +183,45 @@ namespace MitamaBot.Modules
             //Fire-and-forget (without waiting for completion)
             CancellationTokenSource tcs_react_adding = new CancellationTokenSource();
             await Task.Factory.StartNew(async () => await msgEntryPoint.AddReactionsAsync(preEmojiButtons.ToArray(), new RequestOptions() { CancelToken = tcs_react_adding.Token }));
-            userChoseNumber = await ReponseSvc.WaitForNumberAnswerAsync(Context.Channel.Id, preEmojiButtons, 1, isCancellable, ConstantsHelper.CommandCancelKeywords, TimeSpan.FromSeconds(30));
-            tcs_react_adding.Cancel();
 
-            //完成詢問目標伺服器
             Server choseServer = null;
-            
             string preContent = null;
-            if (userChoseNumber == int.MaxValue)
+
+            try
+            {
+                userChoseNumber = await ReponseSvc.WaitForNumberAnswerAsync(Context.Channel.Id, preEmojiButtons, 1, isCancellable, ConstantsHelper.CommandCancelKeywords, TimeSpan.FromSeconds(30));
+                tcs_react_adding.Cancel();
+
+                //完成詢問目標伺服器
+                
+                if (userChoseNumber == null)
+                {
+                    preEmbed = null;
+                    preContent = $"{Context.User.Mention} 已取消。";
+                }
+                else if (userChoseNumber - 1 >= 0 && userChoseNumber <= servers.Count)
+                {
+                    choseServer = servers[(int)userChoseNumber - 1];
+
+                    string embedDescription = "沒有任何帳號，。";
+
+                    preEmbed = new EmbedBuilder
+                    {
+                        Title = $"__{choseServer.ChineseName}__ 帳號編輯",
+                        Description = embedDescription
+                    }.Build();
+                    preContent = null;
+                }
+            }
+            catch (TimeoutException ex)
             {
                 preEmbed = null;
-                preContent = $"{Context.User.Mention} 已取消。";
+                preContent = $"{Context.User.Mention} {ex.Message}";
             }
-            else if (userChoseNumber == null)
+            catch (Exception ex)
             {
                 preEmbed = null;
-                preContent = $"{Context.User.Mention} 操作逾時。";
-            }
-            else if (userChoseNumber -1 >= 0 && userChoseNumber <= servers.Count)
-            {
-                choseServer = servers[(int)userChoseNumber - 1];
-
-                string embedDescription = "沒有任何帳號，。";
-
-                preEmbed = new EmbedBuilder {
-                    Title = $"__{choseServer.ChineseName}__ 帳號編輯",
-                    Description = embedDescription
-                }.Build();
-                preContent = null;
+                preContent = $"{Context.User.Mention} {ex.Message}";
             }
 
             await msgEntryPoint.RemoveAllReactionsAsync();
