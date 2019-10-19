@@ -5,7 +5,7 @@ using System.Text;
 
 namespace MitamaBot.Services.DataStore
 {
-    public abstract class LiteDbCollectionWrapper<T>
+    public abstract class LiteDbCollectionWrapper<T> : IDataStore<T, BsonValue>
     {
         private LiteDatabase Database { get; set; }
         private LiteCollection<T> Collection { get; set; }
@@ -46,6 +46,11 @@ namespace MitamaBot.Services.DataStore
         {
             var existed = Collection.FindById(id);
             return existed;
+        }
+        public IEnumerable<T> FindItems(System.Linq.Expressions.Expression<Func<T, bool>> predicate)
+        {
+            var items = Collection.Find(predicate);
+            return items;
         }
     }
 }

@@ -1,4 +1,5 @@
-﻿using Discord.Commands;
+﻿using Discord;
+using Discord.Commands;
 using MitamaBot.DataModels.Magireco;
 using MitamaBot.Services;
 using MitamaBot.Services.DataStore;
@@ -16,10 +17,25 @@ namespace MitamaBot.Modules
         public MagirecoInfoService MagirecoInfoSvc { get; set; }
         public ResponsiveService ReponseSvc { get; set; }
 
+        [Command("test-opt", RunMode = RunMode.Async)]
+        public async Task TestOptionsAsync()
+        {
+            bool isCancellable = true;
+            var emojis = ReponseSvc.GetNumberOptionsEmojis(3, 1, isCancellable);
+
+            var msg = await ReplyAsync("請選擇");
+            await msg.AddReactionsAsync(emojis.ToArray());
+            int? userChoice = await ReponseSvc.WaitForNumberAnswerAsync(Context.Channel.Id, emojis, 1, isCancellable, new[] {"esc"}, TimeSpan.FromSeconds(5));
+            await msg.ModifyAsync(x=> 
+            {
+                x.Content = $"選擇 {userChoice ?? -9999}";
+            });
+        }
+
         [Command("server")]
         public async Task GetServerInfoAsync()
-        {
-            var servers = MagirecoInfoSvc.ServerCW.GetItems();
+        {            
+            var servers = MagirecoInfoSvc.Server.GetItems();
             if (servers == null || servers.Count() <= 0)
             {
                 await ReplyAsync("沒有任何伺服器。設定一個吧~");
@@ -35,7 +51,7 @@ namespace MitamaBot.Modules
         [RequireUserPermission(Discord.ChannelPermission.ManageRoles)]
         public async Task DeleteServerAsync(string serverKey)
         {
-            if (MagirecoInfoSvc.ServerCW.DeleteItem(serverKey))
+            if (MagirecoInfoSvc.Server.DeleteItem(serverKey))
             {
                 await ReplyAsync($"已刪除 `{serverKey}`。");
             }
@@ -89,7 +105,7 @@ namespace MitamaBot.Modules
 
                 if (ract.Emote.Name == "✅")
                 {
-                    MagirecoInfoSvc.ServerCW.UpsertItem(sv, sv.ServerKey);
+                    MagirecoInfoSvc.Server.UpsertItem(sv, sv.ServerKey);
                     await ReplyAsync($"已更新: {sv.ServerKey}");
                 }
                 else
@@ -104,20 +120,22 @@ namespace MitamaBot.Modules
         [Command("account-edit", RunMode = RunMode.Async)]
         public async Task EditGameAccountAsync()
         {
-            var servers = MagirecoInfoSvc.ServerCW.GetItems().ToList();
+            var playerDiscordId = Context.User.Id.ToString();
+
+            var servers = MagirecoInfoSvc.Server.GetItems().ToList();
             if (servers == null || servers.Count == 0)
             {
-                await ReplyMentionAsync("噢噢! 好像還沒有設定任何伺服器ㄛ\n先等新增完成了再來使用ㄅ");
+                await ReplyMentionAsync("噢噢! 好像還沒有設定任何伺服器ㄛ\n先等管理員新增完成了再來使用ㄅ");
                 return;
             }
 
-            var currentPl = MagirecoInfoSvc.PlayerCW.GetItem(Context.User.Id.ToString());
+            var currentPl = MagirecoInfoSvc.Player.GetItem(Context.User.Id.ToString());
             var firstMsgContent_Builder = new StringBuilder();
             if (currentPl == null)
             {
                 var noPlWarnMsg = await ReplyAsync("由於你還沒有建置玩家檔案，所以先引導建立好，再回頭綁定ID吧~");
                 await EditPlayerDescription();
-                currentPl = MagirecoInfoSvc.PlayerCW.GetItem(Context.User.Id.ToString());
+                currentPl = MagirecoInfoSvc.Player.GetItem(Context.User.Id.ToString());
 
                 if (currentPl == null)
                 {
@@ -128,11 +146,14 @@ namespace MitamaBot.Modules
                     return;
                 }
             }
-            if (currentPl.ServerKey_PlayerStats == null || currentPl.ServerKey_PlayerStats.Count == 0)
+
+            var playerAccounts = MagirecoInfoSvc.PlayerAccount.FindItems(pAccount => pAccount.OwnerDiscordId == playerDiscordId).ToList();
+
+            if (playerAccounts == null || playerAccounts.Count == 0)
             {
                 firstMsgContent_Builder.Append($"你還沒有綁定任何遊戲帳號，");
             }
-            firstMsgContent_Builder.Append($"請問你想要綁定的帳號，隸屬於哪一個伺服器？");
+            firstMsgContent_Builder.Append($"請問你想要查看哪個伺服器？");
 
             var embedPromptServer_Builder = new Discord.EmbedBuilder();
             embedPromptServer_Builder.Title = "遊戲帳號伺服器";
@@ -212,143 +233,154 @@ namespace MitamaBot.Modules
                 }
             }
 
-            //Result
-            string serverName = null;
-
-            Discord.Embed secondEmbed = null;
-            string secondContent = null;
+            //完成詢問目標伺服器
+            Server serverInfo = null;
+            
+            Discord.Embed preEmbed = null;
+            string preContent = null;
             if (userChoice == int.MinValue)
             {
-                secondEmbed = null;
-                secondContent = $"{Context.User.Mention} 已取消。";
+                preEmbed = null;
+                preContent = $"{Context.User.Mention} 已取消。";
             }
             else if (userChoice == -1)
             {
-                secondEmbed = null;
-                secondContent = $"{Context.User.Mention} 操作逾時。";
+                preEmbed = null;
+                preContent = $"{Context.User.Mention} 操作逾時。";
             }
             else if (userChoice -1 >= 0 && userChoice <= servers.Count)
             {
-                serverName = servers[userChoice - 1].ChineseName;
-                secondEmbed = null;
-                secondContent = $"{Context.User.Mention} 選擇了 **`{serverName}`**\n請用鍵盤輸入8碼ID：";
+                serverInfo = servers[userChoice - 1];
+
+                string embedDescription = "沒有任何帳號，。";
+
+                preEmbed = new EmbedBuilder {
+                    Title = $"編輯 {serverInfo.ChineseName} 的帳號，或新增一個",
+                    Description = embedDescription
+                }.Build();
+                preContent = null;
             }
 
             await msgEntryPoint.RemoveAllReactionsAsync();
             await msgEntryPoint.ModifyAsync(x => {
-                x.Content = secondContent;
-                x.Embed = secondEmbed;
+                x.Content = preContent;
+                x.Embed = preEmbed;
             });
 
-            if (serverName == null)
+            if (serverInfo == null)
             {
                 return;
             }
-            string serverKey = servers[userChoice - 1].ServerKey;
 
-            string playerId;
 
-            while (true)
-            {
-                var userAnsMsg = await ReponseSvc.WaitForMessageAsync((msg) =>
-                {
-                    if (msg.Author.IsBot || msg.Author.Id != Context.User.Id)
-                    {
-                        return false;
-                    }
 
-                    return (msg.Channel.Id == Context.Channel.Id);
-                });
-                if (userAnsMsg.Content.Length != 8)
-                {
-                    await msgEntryPoint.ModifyAsync(x => 
-                    {
-                        x.Content = secondContent + "\n　:warning: **輸入錯誤! 好友ID為8碼。**";
-                    });
-                    continue;
-                }
-                playerId = userAnsMsg.Content;
-                break;
-            }
+            //string playerId;
+
+            //while (true)
+            //{
+            //    var userAnsMsg = await ReponseSvc.WaitForMessageAsync((msg) =>
+            //    {
+            //        if (msg.Author.IsBot || msg.Author.Id != Context.User.Id)
+            //        {
+            //            return false;
+            //        }
+
+            //        return (msg.Channel.Id == Context.Channel.Id);
+            //    });
+            //    if (userAnsMsg.Content.Length != 8)
+            //    {
+            //        await msgEntryPoint.ModifyAsync(x => 
+            //        {
+            //            x.Content = secondContent + "\n　:warning: **輸入錯誤! 好友ID為8碼。**";
+            //        });
+            //        continue;
+            //    }
+            //    playerId = userAnsMsg.Content;
+            //    break;
+            //}
+
+
+
+
             
-            var confirmMsg = await ReplyMentionAsync($"綁定 __`{playerId}`__ 到 **`{serverName}`**，是嗎？");
-            await confirmMsg.AddReactionAsync(new Discord.Emoji("✅"));
-            await confirmMsg.AddReactionAsync(new Discord.Emoji("❎"));
+            //var confirmMsg = await ReplyMentionAsync($"綁定 __`{playerId}`__ 到 **`{serverName}`**，是嗎？");
+            //await confirmMsg.AddReactionAsync(new Discord.Emoji("✅"));
+            //await confirmMsg.AddReactionAsync(new Discord.Emoji("❎"));
 
-            var ractConfirm = await ReponseSvc.WaitForReactionAsync((cache, ch, r) =>
-            {
-                if (r.User.Value.IsBot || r.UserId != Context.User.Id)
-                {
-                    return false;
-                }
+            //var ractConfirm = await ReponseSvc.WaitForReactionAsync((cache, ch, r) =>
+            //{
+            //    if (r.User.Value.IsBot || r.UserId != Context.User.Id)
+            //    {
+            //        return false;
+            //    }
 
-                return ch.Id == Context.Channel.Id &&
-                (r.Emote.Name == "✅" || r.Emote.Name == "❎");
-            });
+            //    return ch.Id == Context.Channel.Id &&
+            //    (r.Emote.Name == "✅" || r.Emote.Name == "❎");
+            //});
 
-            if (ractConfirm == null)
-            {
-                await msgEntryPoint.DeleteAsync();
-                await confirmMsg.ModifyAsync(x =>
-                {
-                    x.Content = $"{Context.User.Mention} 操作逾時。";
-                    x.Embed = null;
-                });
-                await confirmMsg.RemoveAllReactionsAsync();
-            }
-            else if (ractConfirm.Emote.Name == "✅")
-            {
+            //if (ractConfirm == null)
+            //{
+            //    await msgEntryPoint.DeleteAsync();
+            //    await confirmMsg.ModifyAsync(x =>
+            //    {
+            //        x.Content = $"{Context.User.Mention} 操作逾時。";
+            //        x.Embed = null;
+            //    });
+            //    await confirmMsg.RemoveAllReactionsAsync();
+            //}
+            //else if (ractConfirm.Emote.Name == "✅")
+            //{
 
-                if (currentPl.ServerKey_PlayerStats.TryAdd(serverKey, new PlayerStat()
-                {
-                    GameId = playerId,
-                    Id = Guid.NewGuid(),
-                }))
-                {
-                    var existPStat = currentPl.ServerKey_PlayerStats[serverKey];
-                    existPStat.GameId = playerId;
-                }
-                var isSucceed = MagirecoInfoSvc.PlayerCW.UpsertItem(currentPl, currentPl.DiscordId);
+            //    if (currentPl.ServerKey_PlayerAccounts.TryAdd(serverKey, new PlayerAccount()
+            //    {
+            //        GameId = playerId,
+            //        Id = Guid.NewGuid(),
+            //    }))
+            //    {
+            //        var existPStat = currentPl.ServerKey_PlayerAccounts[serverKey];
+            //        existPStat.GameId = playerId;
+            //    }
+            //    var isSucceed = MagirecoInfoSvc.PlayerCW.UpsertItem(currentPl, currentPl.DiscordId);
 
-                if (isSucceed)
-                {
-                    await confirmMsg.ModifyAsync(x =>
-                    {
-                        x.Content = $"{Context.User.Mention} 已新增 __`{playerId}`__ 至 **`{serverName}`**。";
-                        x.Embed = null;
-                    });
-                }
-                else
-                {
-                    await confirmMsg.ModifyAsync(x =>
-                    {
-                        x.Content = $"{Context.User.Mention} :warning: 失敗: 無法新增 __`{playerId}`__ 至 **`{serverName}`**。";
-                        x.Embed = null;
-                    });
-                }
-                await msgEntryPoint.DeleteAsync();
-                await confirmMsg.RemoveAllReactionsAsync();
-            }
-            else
-            {
-                await msgEntryPoint.DeleteAsync();
-                await confirmMsg.ModifyAsync(x =>
-                {
-                    x.Content = $"{Context.User.Mention} 已放棄綁定小圓ID程序。";
-                    x.Embed = null;
-                });
-                await confirmMsg.RemoveAllReactionsAsync();
-            }
+            //    if (isSucceed)
+            //    {
+            //        await confirmMsg.ModifyAsync(x =>
+            //        {
+            //            x.Content = $"{Context.User.Mention} 已新增 __`{playerId}`__ 至 **`{serverName}`**。";
+            //            x.Embed = null;
+            //        });
+            //    }
+            //    else
+            //    {
+            //        await confirmMsg.ModifyAsync(x =>
+            //        {
+            //            x.Content = $"{Context.User.Mention} :warning: 失敗: 無法新增 __`{playerId}`__ 至 **`{serverName}`**。";
+            //            x.Embed = null;
+            //        });
+            //    }
+            //    await msgEntryPoint.DeleteAsync();
+            //    await confirmMsg.RemoveAllReactionsAsync();
+            //}
+            //else
+            //{
+            //    await msgEntryPoint.DeleteAsync();
+            //    await confirmMsg.ModifyAsync(x =>
+            //    {
+            //        x.Content = $"{Context.User.Mention} 已放棄綁定小圓ID程序。";
+            //        x.Embed = null;
+            //    });
+            //    await confirmMsg.RemoveAllReactionsAsync();
+            //}
         }
 
         [Command("profile-edit", RunMode = RunMode.Async)]
         public async Task EditPlayerDescription()
         {
-            var currentPl = MagirecoInfoSvc.PlayerCW.GetItem(Context.User.Id.ToString());
+            var currentPl = MagirecoInfoSvc.Player.GetItem(Context.User.Id.ToString());
             if (currentPl == null)
             {
                 currentPl = new Player(Context.User.Id.ToString());
-                MagirecoInfoSvc.PlayerCW.UpsertItem(currentPl, currentPl.DiscordId);
+                MagirecoInfoSvc.Player.UpsertItem(currentPl, currentPl.DiscordId);
                 await ReplyMentionAsync($"歡迎初次使用好友系統～已登錄!");
             }
             else if (string.IsNullOrEmpty(currentPl.Description))
@@ -398,7 +430,7 @@ namespace MitamaBot.Modules
                 {
                     currentPl.Description = userAnsMsg.Content;
                     
-                    if (MagirecoInfoSvc.PlayerCW.UpsertItem(currentPl, currentPl.DiscordId))
+                    if (MagirecoInfoSvc.Player.UpsertItem(currentPl, currentPl.DiscordId))
                     {
                         await ReplyMentionAsync($"個人簡介更新成功。");
                     }

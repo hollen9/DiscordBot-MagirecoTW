@@ -13,7 +13,7 @@ namespace MitamaBot.DataModels.Magireco
         [LiteDB.BsonId(false)]
         public string DiscordId { get; set; }
         public string Description { get; set; }
-        public Dictionary<string, PlayerStat> ServerKey_PlayerStats { get; set; }
+        //public Dictionary<string, PlayerAccount> ServerKey_PlayerAccounts { get; set; }
     }
 
     [LiteDB.BsonIgnore]
@@ -27,7 +27,7 @@ namespace MitamaBot.DataModels.Magireco
             DiscordId = discordId;
 
             Description = string.Empty;
-            ServerKey_PlayerStats = new Dictionary<string, PlayerStat>();
+            //ServerKey_PlayerAccounts = new Dictionary<string, PlayerAccount>();
         }
     }
 }

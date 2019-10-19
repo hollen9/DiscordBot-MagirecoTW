@@ -8,14 +8,20 @@ using MitamaBot.Services;
 
 namespace MitamaBot.DataModels.Magireco
 {
-    public class PlayerStat
+    /// <summary>
+    /// 玩家的帳號數據
+    /// </summary>
+    public class PlayerAccount
     {
         [LiteDB.BsonId(true)]
         public Guid Id { get; set; }
         public string GameId { get; set; }
         public string GameHandle { get; set; }
         public string Description { get; set; }
-        public List<long> Following { get; set; }
-        public List<long> Follower { get; set; }
+        public List<Guid> Following { get; set; }
+        public List<Guid> Follower { get; set; }
+
+        public string OwnerDiscordId { get; set; }
+        public string OwnerServerKey { get; set; }
     }
 }
