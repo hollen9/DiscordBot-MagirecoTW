@@ -7,6 +7,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace MitamaBot.Modules
@@ -21,11 +22,16 @@ namespace MitamaBot.Modules
         public async Task TestOptionsAsync()
         {
             bool isCancellable = true;
-            var emojis = ReponseSvc.GetNumberOptionsEmojis(3, 1, isCancellable);
+            var emojis = ReponseSvc.GetNumberOptionsEmojis(10, 1, isCancellable);
 
             var msg = await ReplyAsync("請選擇");
-            await msg.AddReactionsAsync(emojis.ToArray());
+            //Fire-and-forget
+            CancellationTokenSource tcs_react_adding = new CancellationTokenSource();
+            await Task.Factory.StartNew(async () => await msg.AddReactionsAsync(emojis.ToArray(), new RequestOptions() {CancelToken = tcs_react_adding.Token}));
             int? userChoice = await ReponseSvc.WaitForNumberAnswerAsync(Context.Channel.Id, emojis, 1, isCancellable, new[] {"esc"}, TimeSpan.FromSeconds(5));
+            tcs_react_adding.Cancel();
+
+            await msg.RemoveAllReactionsAsync();
             await msg.ModifyAsync(x=> 
             {
                 x.Content = $"選擇 {userChoice ?? -9999}";
