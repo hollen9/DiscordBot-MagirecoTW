@@ -203,6 +203,7 @@ namespace MitamaBot.Modules
             //Shortcuts / Declarances
             string userId = Context.User.Id.ToString();
 
+            IUserMessage msgPanel;
             List<Emoji> preEmojiButtons;
             StringBuilder preContentBuilder;
             Embed preEmbed = null;
@@ -248,14 +249,14 @@ namespace MitamaBot.Modules
                 "遊戲帳號伺服器", servers.Select(x => new string($"{x.ChineseName} `{x.ServerKey}`")
                 ).ToList(), ReponseSvc.Options.CancelKeywords
                 );
-            var msgEntryPoint = await ReplyAsync(preContentBuilder.ToString(), false, embedPromptServer);
+            msgPanel = await ReplyAsync(preContentBuilder.ToString(), false, embedPromptServer);
 
             isCancellable = true;
             preEmojiButtons = ReponseSvc.GetNumberOptionsEmojis(servers.Count, 1, isCancellable);
 
             //Fire-and-forget (without waiting for completion)
             CancellationTokenSource tcs_react_adding = new CancellationTokenSource();
-            await Task.Factory.StartNew(async () => await msgEntryPoint.AddReactionsAsync(preEmojiButtons.ToArray(), new RequestOptions() { CancelToken = tcs_react_adding.Token }));
+            await Task.Factory.StartNew(async () => await msgPanel.AddReactionsAsync(preEmojiButtons.ToArray(), new RequestOptions() { CancelToken = tcs_react_adding.Token }));
 
             Server choseServer = null;
             string preContent = null;
@@ -271,18 +272,13 @@ namespace MitamaBot.Modules
                 {
                     preEmbed = null;
                     preContent = $"{Context.User.Mention} 已取消。";
+                    return;
                 }
                 else if (userChoseNumber - 1 >= 0 && userChoseNumber <= servers.Count)
                 {
                     choseServer = servers[(int)userChoseNumber - 1];
 
-                    string embedDescription = "沒有任何帳號，。";
-
-                    preEmbed = new EmbedBuilder
-                    {
-                        Title = $"__{choseServer.ChineseName}__ 帳號編輯",
-                        Description = embedDescription
-                    }.Build();
+                    preEmbed = null;
                     preContent = null;
                 }
             }
@@ -290,25 +286,48 @@ namespace MitamaBot.Modules
             {
                 preEmbed = null;
                 preContent = $"{Context.User.Mention} {ex.Message}";
+                return;
             }
             catch (Exception ex)
             {
                 preEmbed = null;
                 preContent = $"{Context.User.Mention} {ex.Message}";
+                return;
+            }
+            finally
+            {
+                await msgPanel.RemoveAllReactionsAsync();
+                if (preEmbed != null || preContent != null)
+                {
+                    await msgPanel.ModifyAsync(x => {
+                        x.Content = preContent;
+                        x.Embed = preEmbed;
+                    });
+                }
             }
 
-            await msgEntryPoint.RemoveAllReactionsAsync();
-            await msgEntryPoint.ModifyAsync(x => {
-                x.Content = preContent;
-                x.Embed = preEmbed;
-            });
+            
 
             if (choseServer == null)
             {
                 return;
             }
 
+            var playerAccountsOfChoseServer = MagirecoInfoSvc.PlayerAccount.FindItems(pa =>
+                        pa.OwnerServerKey == choseServer.ServerKey &&
+                        pa.OwnerDiscordId == userId).ToList();
 
+            List<string> options = playerAccountsOfChoseServer.Select(x => new string($"{x.GameId}")).ToList();
+            options.Insert(0, "【新增帳號】");
+
+            preEmbed = DiscordEmbedHelper.BuildLinesOfOptions(
+                $"__{choseServer.ChineseName}__ 帳號編輯", options, ReponseSvc.Options.CancelKeywords);
+            preContent = null;
+
+            await msgPanel.ModifyAsync(x => {
+                x.Content = preContent;
+                x.Embed = preEmbed;
+            });
 
             //string playerId;
 
@@ -338,7 +357,7 @@ namespace MitamaBot.Modules
 
 
 
-            
+
             //var confirmMsg = await ReplyMentionAsync($"綁定 __`{playerId}`__ 到 **`{serverName}`**，是嗎？");
             //await confirmMsg.AddReactionAsync(new Discord.Emoji("✅"));
             //await confirmMsg.AddReactionAsync(new Discord.Emoji("❎"));

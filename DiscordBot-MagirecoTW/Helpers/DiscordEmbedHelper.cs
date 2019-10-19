@@ -18,7 +18,7 @@ namespace MitamaBot.Helpers
             }
             if (cancelKeywords != null)
             {
-                sB.AppendLine($"-----------------------\n取消指令: ` {string.Join("`、`", cancelKeywords)} ` 。");
+                eB.WithFooter($"取消指令: {string.Join("、", cancelKeywords)} ");
             }
             eB.Description = sB.ToString();
             return eB.Build();
