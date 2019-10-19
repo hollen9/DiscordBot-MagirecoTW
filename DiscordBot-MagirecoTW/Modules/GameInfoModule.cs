@@ -66,6 +66,52 @@ namespace MitamaBot.Modules
             }
         }
 
+        [Command("test-bool", RunMode = RunMode.Async)]
+        public async Task TestBooleanAsync()
+        {
+            bool isCancellable = true;
+            
+            var msg = await ReplyAsync("請選擇");
+            try
+            {
+                //Fire-and-forget (without waiting for completion)
+                CancellationTokenSource tcs_react_adding = new CancellationTokenSource();
+                await Task.Factory.StartNew(async () => await msg.AddReactionsAsync(ReponseSvc.GetBooleanOptionsEmojis().ToArray(), new RequestOptions() { CancelToken = tcs_react_adding.Token }));
+                bool? userChoice = await ReponseSvc.WaitForBooleanAnswerAsync(Context.Channel.Id, isCancellable, TimeSpan.FromSeconds(5));
+                tcs_react_adding.Cancel();
+
+                await msg.ModifyAsync(x =>
+                {
+                    if (userChoice == null)
+                    {
+                        x.Content = $"{Context.User.Mention} 已取消。";
+                    }
+                    else
+                    {
+                        x.Content = $"{Context.User.Mention} 選擇: **{ ((bool)userChoice ? "是" : "否") }**。";
+                    }
+                });
+            }
+            catch (TimeoutException ex)
+            {
+                await msg.ModifyAsync(x =>
+                {
+                    x.Content = $"{Context.User.Mention} {ex.Message}";
+                });
+            }
+            catch (Exception ex)
+            {
+                await msg.ModifyAsync(x =>
+                {
+                    x.Content = $"{Context.User.Mention} {ex.Message}";
+                });
+            }
+            finally
+            {
+                await msg.RemoveAllReactionsAsync();
+            }
+        }
+
         [Command("server")]
         public async Task GetServerInfoAsync()
         {            

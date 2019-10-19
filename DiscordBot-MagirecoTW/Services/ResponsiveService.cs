@@ -16,13 +16,11 @@ namespace MitamaBot.Services
         private readonly ILogger<ResponsiveService> _logger;
         private readonly DiscordSocketClient _discord;
 
-        //private readonly string[] yesStrings = { "Yes", "Y", "是" };
-        //private readonly string[] noStrings = { "No", "N", "否" };
-        private readonly Emoji cancelEmoji;
-        private readonly Emoji yesEmoji;
-        private readonly Emoji noEmoji;
-
         public ResponsiveOptions Options { get; }
+
+        public Emoji CancelEmoji { get; }
+        public Emoji YesEmoji { get; }
+        public Emoji NoEmoji { get; }
 
         public ResponsiveService(/*ILogger<ResponsiveService> logger, */IConfiguration config, DiscordSocketClient discord)
         {
@@ -33,9 +31,9 @@ namespace MitamaBot.Services
             config.Bind("ResponsiveOptions", options);
             Options = options;
 
-            cancelEmoji = new Emoji(Options.CancelEmojiUnicode);
-            yesEmoji = new Emoji(Options.YesEmojiUnicode);
-            noEmoji = new Emoji(Options.NoEmojiUnicode);
+            CancelEmoji = new Emoji(Options.CancelEmojiUnicode);
+            YesEmoji = new Emoji(Options.YesEmojiUnicode);
+            NoEmoji = new Emoji(Options.NoEmojiUnicode);
         }
 
         private async Task<T> WaitAsync<T>(TaskCompletionSource<T> tcs, TimeSpan? expireAfter = null)
@@ -81,7 +79,6 @@ namespace MitamaBot.Services
         }
 
         /// <summary>
-        /// <para>若逾時未作答回傳 null。</para>
         /// <para>取消回傳 null。</para>
         /// <para>逾時未答拋出 TimeoutException。</para>
         /// <para>不明原因拋出 Exception。</para>
@@ -206,31 +203,24 @@ namespace MitamaBot.Services
                 bool hasYesStr = Options.YesKeywords.Contains(content),
                      hasNoStr = Options.NoKeywords.Contains(content);
 
-                if (!bool.TryParse(content, out bool outValue) && !hasYesStr && !hasNoStr)
+                if (!hasYesStr && !hasNoStr)
                 {
                     return Task.CompletedTask;
                 }
+                if (hasYesStr)
+                {
+                    userChoose = true;
+                }
+                else if (hasNoStr)
+                {
+                    userChoose = false;
+                }
                 else
                 {
-                    userChoose = outValue;
+                    return Task.CompletedTask;
+                    // Ignore and abandon this value
                 }
-                if (userChoose == null)
-                {
-                    if (hasYesStr)
-                    {
-                        userChoose = true;
-                    }
-                    else if (hasNoStr)
-                    {
-                        userChoose = false;
-                    }
-                    else
-                    {
-                        return Task.CompletedTask; 
-                        // Ignore and abandon this value
-                    }
-                }
-                
+
                 tcs.TrySetResult(new SocketMessageOrReaction() { Message = x });
                 return Task.CompletedTask;
 
@@ -243,15 +233,15 @@ namespace MitamaBot.Services
                     return Task.CompletedTask;
                 }
 
-                if (isCancellable && r.Emote.Name == cancelEmoji.Name)
+                if (isCancellable && r.Emote.Name == CancelEmoji.Name)
                 {
                     userChoose = null;
                 }
-                else if (r.Emote.Name == yesEmoji.Name)
+                else if (r.Emote.Name == YesEmoji.Name)
                 {
                     userChoose = true;
                 }
-                else if (r.Emote.Name == noEmoji.Name)
+                else if (r.Emote.Name == NoEmoji.Name)
                 {
                     userChoose = false;
                 }
@@ -287,7 +277,7 @@ namespace MitamaBot.Services
         /// <param name="start">Max is 10</param>
         /// <param name="showCancelButton">Is showing the cancel button</param>
         /// <returns></returns>
-        public List<Discord.Emoji> GetNumberOptionsEmojis(int end, int start = 1, bool showCancelButton = true)
+        public List<Emoji> GetNumberOptionsEmojis(int end, int start = 1, bool showCancelButton = true)
         {
             if (start < 0)
             {
@@ -298,7 +288,7 @@ namespace MitamaBot.Services
                 end = 10;
             }
 
-            var emojiOptionCancel = cancelEmoji;
+            var emojiOptionCancel = CancelEmoji;
             var emojiNumberOptions = new Discord.Emoji[]
             {
                 new Discord.Emoji("0⃣"),
@@ -324,6 +314,18 @@ namespace MitamaBot.Services
                 result.Add(emojiOptionCancel);
             }
             return result;
+        }
+
+        public List<Emoji> GetBooleanOptionsEmojis(bool showCancelButton = true)
+        {
+            var emojis = new List<Emoji>();
+            emojis.Add(YesEmoji);
+            emojis.Add(NoEmoji);
+            if (showCancelButton)
+            {
+                emojis.Add(CancelEmoji);
+            }
+            return emojis;
         }
 
         public class SocketMessageOrReaction
