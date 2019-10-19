@@ -234,8 +234,17 @@ namespace MitamaBot.Services
         /// <param name="start">Max is 10</param>
         /// <param name="showCancelButton">Is showing the cancel button</param>
         /// <returns></returns>
-        public List<Discord.Emoji> GetNumberOptionsEmojis(byte end, byte start = 1, bool showCancelButton = true)
+        public List<Discord.Emoji> GetNumberOptionsEmojis(int end, int start = 1, bool showCancelButton = true)
         {
+            if (start < 0)
+            {
+                start = 0;
+            }
+            if (end > 10)
+            {
+                end = 10;
+            }
+
             var emojiOptionCancel = new Discord.Emoji("❎");
             var emojiNumberOptions = new Discord.Emoji[]
             {
@@ -253,7 +262,7 @@ namespace MitamaBot.Services
             };
 
             var result = new List<Discord.Emoji>();
-            for (byte i = start; i <= end; i++)
+            for (int i = start; i <= end; i++)
             {
                 result.Add(emojiNumberOptions[i]);
             }
