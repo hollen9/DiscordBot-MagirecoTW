@@ -162,81 +162,20 @@ namespace MitamaBot.Modules
             }
             firstMsgContent_Builder.Append($"請問你想要查看哪個伺服器？");
 
-            //var embedPromptServer_Builder = new Discord.EmbedBuilder();
-            //embedPromptServer_Builder.Title = "遊戲帳號伺服器";
-            //MitamaBot.Helpers.DiscordEmbedHelper.BuildLinesOfOptions(
-            //    "遊戲帳號伺服器", MitamaBot.Helpers.ConstantsHelper.CommandCancelKeywords,
-            //    MitamaBot.Helpers.DiscordEmbedHelper.BuildLinesOfOptions(
-            //    );
             var embedPromptServer = DiscordEmbedHelper.BuildLinesOfOptions(
-                "遊戲帳號伺服器", servers.Select(x=> x.ChineseName).ToList(), ConstantsHelper.CommandCancelKeywords
+                "遊戲帳號伺服器", servers.Select(x => new string($"{x.ChineseName} `{x.ServerKey}`")
+                ).ToList(), ConstantsHelper.CommandCancelKeywords
                 );
-
             var msgEntryPoint = await ReplyAsync(firstMsgContent_Builder.ToString(), false, embedPromptServer);
 
             bool isCancellable = true;
             var emojis = ReponseSvc.GetNumberOptionsEmojis(servers.Count, 1, isCancellable);
 
-            //var msg = await ReplyAsync("請選擇");
             //Fire-and-forget (without waiting for completion)
             CancellationTokenSource tcs_react_adding = new CancellationTokenSource();
             await Task.Factory.StartNew(async () => await msgEntryPoint.AddReactionsAsync(emojis.ToArray(), new RequestOptions() { CancelToken = tcs_react_adding.Token }));
             int? userChoice = await ReponseSvc.WaitForNumberAnswerAsync(Context.Channel.Id, emojis, 1, isCancellable, ConstantsHelper.CommandCancelKeywords, TimeSpan.FromSeconds(30));
             tcs_react_adding.Cancel();
-
-            //if (reactButtons != null)
-            //{
-            //    reactButtons.ForEach(async emoji =>
-            //    {
-            //        await msgEntryPoint.AddReactionAsync(emoji);
-            //    });
-
-            //    var ract = await ReponseSvc.WaitForReactionAsync((cache, ch, r) =>
-            //    {
-            //        if (r.User.Value.IsBot || r.UserId != Context.User.Id)
-            //        {
-            //            return false;
-            //        }
-
-            //        var uMoji = r.Emote as Discord.Emoji;
-
-            //        if (uMoji.Name == reactButtons.Last().Name)
-            //        {
-            //            userChoice = int.MinValue;
-            //            return true;
-            //        }
-
-            //        userChoice = reactButtons.IndexOf(uMoji) + 1;
-            //        if (userChoice >= 0)
-            //        {
-            //            return true;
-            //        }
-            //        else
-            //        {
-            //            return false;
-            //        }
-            //    });
-            //}
-            //else
-            //{
-            //    while (true)
-            //    {
-            //        var userAnsMsg = await ReponseSvc.WaitForMessageAsync((msg) =>
-            //            {
-            //                if (msg.Author.IsBot || msg.Author.Id != Context.User.Id)
-            //                {
-            //                    return false;
-            //                }
-            //                return msg.Channel.Id == Context.Channel.Id;
-            //            });
-            //        if (!int.TryParse(userAnsMsg.Content, out userChoice) || userChoice <= 0 || userChoice > servers.Count)
-            //        {
-            //            await ReplyMentionAsync("請輸入有效選項!");
-            //            continue;
-            //        }
-            //        break;
-            //    }
-            //}
 
             //完成詢問目標伺服器
             Server serverInfo = null;
