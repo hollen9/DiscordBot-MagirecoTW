@@ -3,7 +3,6 @@ using Discord.WebSocket;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,15 +14,15 @@ namespace MitamaBot.Services
     public class ResponsiveService
     {
         private readonly ILogger<ResponsiveService> _logger;
-        private readonly ResponsiveOptions _options;
         private readonly DiscordSocketClient _discord;
 
-        private readonly string[] yesStrings = { "Yes", "Y", "是" };
-        private readonly string[] noStrings = { "No", "N", "否" };
-        private readonly Emoji cancelEmoji = new Discord.Emoji("❎");
-        private readonly Emoji yesEmoji = new Discord.Emoji("⭕");
-        private readonly Emoji noEmoji = new Discord.Emoji("❌");
-        //private Emoji[] yesNoEmojis => new Emoji[] { yesEmoji, noEmoji, cancelEmoji};
+        //private readonly string[] yesStrings = { "Yes", "Y", "是" };
+        //private readonly string[] noStrings = { "No", "N", "否" };
+        private readonly Emoji cancelEmoji;
+        private readonly Emoji yesEmoji;
+        private readonly Emoji noEmoji;
+
+        public ResponsiveOptions Options { get; }
 
         public ResponsiveService(/*ILogger<ResponsiveService> logger, */IConfiguration config, DiscordSocketClient discord)
         {
@@ -31,13 +30,17 @@ namespace MitamaBot.Services
             _discord = discord;
             
             var options = new ResponsiveOptions();
-            config.Bind("responsive", options);
-            _options = options;
+            config.Bind("ResponsiveOptions", options);
+            Options = options;
+
+            cancelEmoji = new Emoji(Options.CancelEmojiUnicode);
+            yesEmoji = new Emoji(Options.YesEmojiUnicode);
+            noEmoji = new Emoji(Options.NoEmojiUnicode);
         }
 
         private async Task<T> WaitAsync<T>(TaskCompletionSource<T> tcs, TimeSpan? expireAfter = null)
         {
-            new Timer((s) => tcs.TrySetCanceled(), null, expireAfter == null ? TimeSpan.FromSeconds(_options.DefaultExpireSeconds) : (TimeSpan)expireAfter, TimeSpan.Zero);
+            new Timer((s) => tcs.TrySetCanceled(), null, expireAfter == null ? TimeSpan.FromSeconds(Options.DefaultExpireSeconds) : (TimeSpan)expireAfter, TimeSpan.Zero);
             try
             {
                 return await tcs.Task;
@@ -79,8 +82,9 @@ namespace MitamaBot.Services
 
         /// <summary>
         /// <para>若逾時未作答回傳 null。</para>
-        /// <para>取消回傳 int.MaxValue。</para>
-        /// <para>不明原因回傳 int.MinValue。</para>
+        /// <para>取消回傳 null。</para>
+        /// <para>逾時未答拋出 TimeoutException。</para>
+        /// <para>不明原因拋出 Exception。</para>
         /// </summary>
         /// <param name="channelId"></param>
         /// <param name="optionEmojis">這可以呼叫 GetNumberOptionsEmojis() </param>
@@ -95,7 +99,6 @@ namespace MitamaBot.Services
             List<Emoji> optionEmojis,
             byte startNumber = 1,
             bool isCancellable = false,
-            string[] msgCancelKeywords = null,
             TimeSpan? expireAfter = null,
             TaskCompletionSource<SocketMessageOrReaction> tcs = null)
         {
@@ -114,9 +117,9 @@ namespace MitamaBot.Services
                 }
                 string content = x.Content.Trim();
 
-                if (isCancellable && msgCancelKeywords != null && msgCancelKeywords.Contains(content))
+                if (isCancellable && Options.CancelKeywords != null && Options.CancelKeywords.Contains(content))
                 {
-                    userChoose = int.MaxValue;
+                    userChoose = null;
                     tcs.TrySetResult(new SocketMessageOrReaction() { Message = x });
                     return Task.CompletedTask;
                 }
@@ -144,7 +147,7 @@ namespace MitamaBot.Services
                     {
                         if (isCancellable && i == optionEmojis.Count - 1)
                         {
-                            userChoose = int.MaxValue; //Cancel
+                            userChoose = null; //Cancel
                         }
                         else
                         {
@@ -176,7 +179,6 @@ namespace MitamaBot.Services
         public async Task<bool?> WaitForBooleanAnswerAsync(
             ulong channelId,
             bool isCancellable = false,
-            string[] msgCancelKeywords = null,
             TimeSpan? expireAfter = null,
             TaskCompletionSource<SocketMessageOrReaction> tcs = null)
         {
@@ -195,14 +197,14 @@ namespace MitamaBot.Services
                 }
                 string content = x.Content.Trim().ToLower();
 
-                if (isCancellable && msgCancelKeywords != null && msgCancelKeywords.Contains(content))
+                if (isCancellable && Options.CancelKeywords != null && Options.CancelKeywords.Contains(content))
                 {
                     userChoose = null;
                     tcs.TrySetResult(new SocketMessageOrReaction() { Message = x });
                     return Task.CompletedTask;
                 }
-                bool hasYesStr = yesStrings.Contains(content),
-                     hasNoStr = noStrings.Contains(content);
+                bool hasYesStr = Options.YesKeywords.Contains(content),
+                     hasNoStr = Options.NoKeywords.Contains(content);
 
                 if (!bool.TryParse(content, out bool outValue) && !hasYesStr && !hasNoStr)
                 {
@@ -339,8 +341,12 @@ namespace MitamaBot.Services
         {
             DefaultExpireSeconds = 30;
         }
-
-        //[JsonProperty("expire_seconds")]
         public int DefaultExpireSeconds { get; set; }
+        public string[] YesKeywords { get; set; }
+        public string[] NoKeywords { get; set; }
+        public string[] CancelKeywords { get; set; }
+        public string CancelEmojiUnicode { get; set; }
+        public string YesEmojiUnicode { get; set; }
+        public string NoEmojiUnicode { get; set; }
     }
 }

@@ -6,6 +6,6 @@ namespace MitamaBot.Helpers
 {
     public static class ConstantsHelper
     {
-        public static string[] CommandCancelKeywords = { "cancel", "取消", "esc", "escape"};
+        //public static string[] CommandCancelKeywords = { "cancel", "取消", "esc", "escape"};
     }
 }

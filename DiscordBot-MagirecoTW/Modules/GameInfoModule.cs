@@ -26,17 +26,44 @@ namespace MitamaBot.Modules
             var emojis = ReponseSvc.GetNumberOptionsEmojis(10, 1, isCancellable);
 
             var msg = await ReplyAsync("請選擇");
-            //Fire-and-forget (without waiting for completion)
-            CancellationTokenSource tcs_react_adding = new CancellationTokenSource();
-            await Task.Factory.StartNew(async () => await msg.AddReactionsAsync(emojis.ToArray(), new RequestOptions() {CancelToken = tcs_react_adding.Token}));
-            int? userChoice = await ReponseSvc.WaitForNumberAnswerAsync(Context.Channel.Id, emojis, 1, isCancellable, new[] {"esc"}, TimeSpan.FromSeconds(5));
-            tcs_react_adding.Cancel();
-
-            await msg.RemoveAllReactionsAsync();
-            await msg.ModifyAsync(x=> 
+            try
             {
-                x.Content = $"選擇 {userChoice ?? -9999}";
-            });
+                //Fire-and-forget (without waiting for completion)
+                CancellationTokenSource tcs_react_adding = new CancellationTokenSource();
+                await Task.Factory.StartNew(async () => await msg.AddReactionsAsync(emojis.ToArray(), new RequestOptions() { CancelToken = tcs_react_adding.Token }));
+                int? userChoice = await ReponseSvc.WaitForNumberAnswerAsync(Context.Channel.Id, emojis, 1, isCancellable, TimeSpan.FromSeconds(5));
+                tcs_react_adding.Cancel();
+
+                await msg.ModifyAsync(x =>
+                {
+                    if (userChoice == null)
+                    {
+                        x.Content = $"{Context.User.Mention} 已取消。";
+                    }
+                    else
+                    {
+                        x.Content = $"{Context.User.Mention} 選擇: **{ userChoice }**。";
+                    }
+                });
+            }
+            catch (TimeoutException ex)
+            {
+                await msg.ModifyAsync(x =>
+                {
+                    x.Content = $"{Context.User.Mention} {ex.Message}";
+                });
+            }
+            catch (Exception ex)
+            {
+                await msg.ModifyAsync(x =>
+                {
+                    x.Content = $"{Context.User.Mention} {ex.Message}";
+                });
+            }
+            finally
+            {
+                await msg.RemoveAllReactionsAsync();
+            }
         }
 
         [Command("server")]
@@ -173,7 +200,7 @@ namespace MitamaBot.Modules
 
             var embedPromptServer = DiscordEmbedHelper.BuildLinesOfOptions(
                 "遊戲帳號伺服器", servers.Select(x => new string($"{x.ChineseName} `{x.ServerKey}`")
-                ).ToList(), ConstantsHelper.CommandCancelKeywords
+                ).ToList(), ReponseSvc.Options.CancelKeywords
                 );
             var msgEntryPoint = await ReplyAsync(preContentBuilder.ToString(), false, embedPromptServer);
 
@@ -189,7 +216,7 @@ namespace MitamaBot.Modules
 
             try
             {
-                userChoseNumber = await ReponseSvc.WaitForNumberAnswerAsync(Context.Channel.Id, preEmojiButtons, 1, isCancellable, ConstantsHelper.CommandCancelKeywords, TimeSpan.FromSeconds(30));
+                userChoseNumber = await ReponseSvc.WaitForNumberAnswerAsync(Context.Channel.Id, preEmojiButtons, 1, isCancellable);
                 tcs_react_adding.Cancel();
 
                 //完成詢問目標伺服器
