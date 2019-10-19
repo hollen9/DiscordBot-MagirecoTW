@@ -127,24 +127,33 @@ namespace MitamaBot.Modules
         [Command("account-edit", RunMode = RunMode.Async)]
         public async Task EditGameAccountAsync()
         {
-            var playerDiscordId = Context.User.Id.ToString();
+            //Shortcuts / Declarances
+            string userId = Context.User.Id.ToString();
 
+            List<Emoji> preEmojiButtons;
+            StringBuilder preContentBuilder;
+            Embed preEmbed = null;
+            int? userChoseNumber = null;
+            bool isCancellable;
+
+            //Start
             var servers = MagirecoInfoSvc.Server.GetItems().ToList();
             if (servers == null || servers.Count == 0)
             {
-                await ReplyMentionAsync("噢噢! 好像還沒有設定任何伺服器ㄛ\n先等管理員新增完成了再來使用ㄅ");
+                await ReplyMentionAsync("噢噢! 好像還沒有設定任何伺服器\n先等管理員新增完成了再來使用吧");
                 return;
             }
 
-            var currentPl = MagirecoInfoSvc.Player.GetItem(Context.User.Id.ToString());
-            var firstMsgContent_Builder = new StringBuilder();
-            if (currentPl == null)
+            var player = MagirecoInfoSvc.Player.GetItem(Context.User.Id.ToString());
+
+            preContentBuilder = new StringBuilder();
+            if (player == null)
             {
                 var noPlWarnMsg = await ReplyAsync("由於你還沒有建置玩家檔案，所以先引導建立好，再回頭綁定ID吧~");
                 await EditPlayerDescription();
-                currentPl = MagirecoInfoSvc.Player.GetItem(Context.User.Id.ToString());
+                player = MagirecoInfoSvc.Player.GetItem(Context.User.Id.ToString());
 
-                if (currentPl == null)
+                if (player == null)
                 {
                     await noPlWarnMsg.ModifyAsync(msg=>
                     {
@@ -154,52 +163,51 @@ namespace MitamaBot.Modules
                 }
             }
 
-            var playerAccounts = MagirecoInfoSvc.PlayerAccount.FindItems(pAccount => pAccount.OwnerDiscordId == playerDiscordId).ToList();
+            var playerAccounts = MagirecoInfoSvc.PlayerAccount.FindItems(pAccount => pAccount.OwnerDiscordId == userId).ToList();
 
             if (playerAccounts == null || playerAccounts.Count == 0)
             {
-                firstMsgContent_Builder.Append($"你還沒有綁定任何遊戲帳號，");
+                preContentBuilder.Append($"你還沒有綁定任何遊戲帳號，");
             }
-            firstMsgContent_Builder.Append($"請問你想要查看哪個伺服器？");
+            preContentBuilder.Append($"請問你想要查看哪個伺服器？");
 
             var embedPromptServer = DiscordEmbedHelper.BuildLinesOfOptions(
                 "遊戲帳號伺服器", servers.Select(x => new string($"{x.ChineseName} `{x.ServerKey}`")
                 ).ToList(), ConstantsHelper.CommandCancelKeywords
                 );
-            var msgEntryPoint = await ReplyAsync(firstMsgContent_Builder.ToString(), false, embedPromptServer);
+            var msgEntryPoint = await ReplyAsync(preContentBuilder.ToString(), false, embedPromptServer);
 
-            bool isCancellable = true;
-            var emojis = ReponseSvc.GetNumberOptionsEmojis(servers.Count, 1, isCancellable);
+            isCancellable = true;
+            preEmojiButtons = ReponseSvc.GetNumberOptionsEmojis(servers.Count, 1, isCancellable);
 
             //Fire-and-forget (without waiting for completion)
             CancellationTokenSource tcs_react_adding = new CancellationTokenSource();
-            await Task.Factory.StartNew(async () => await msgEntryPoint.AddReactionsAsync(emojis.ToArray(), new RequestOptions() { CancelToken = tcs_react_adding.Token }));
-            int? userChoice = await ReponseSvc.WaitForNumberAnswerAsync(Context.Channel.Id, emojis, 1, isCancellable, ConstantsHelper.CommandCancelKeywords, TimeSpan.FromSeconds(30));
+            await Task.Factory.StartNew(async () => await msgEntryPoint.AddReactionsAsync(preEmojiButtons.ToArray(), new RequestOptions() { CancelToken = tcs_react_adding.Token }));
+            userChoseNumber = await ReponseSvc.WaitForNumberAnswerAsync(Context.Channel.Id, preEmojiButtons, 1, isCancellable, ConstantsHelper.CommandCancelKeywords, TimeSpan.FromSeconds(30));
             tcs_react_adding.Cancel();
 
             //完成詢問目標伺服器
-            Server serverInfo = null;
+            Server choseServer = null;
             
-            Discord.Embed preEmbed = null;
             string preContent = null;
-            if (userChoice == int.MaxValue)
+            if (userChoseNumber == int.MaxValue)
             {
                 preEmbed = null;
                 preContent = $"{Context.User.Mention} 已取消。";
             }
-            else if (userChoice == null)
+            else if (userChoseNumber == null)
             {
                 preEmbed = null;
                 preContent = $"{Context.User.Mention} 操作逾時。";
             }
-            else if (userChoice -1 >= 0 && userChoice <= servers.Count)
+            else if (userChoseNumber -1 >= 0 && userChoseNumber <= servers.Count)
             {
-                serverInfo = servers[(int)userChoice - 1];
+                choseServer = servers[(int)userChoseNumber - 1];
 
                 string embedDescription = "沒有任何帳號，。";
 
                 preEmbed = new EmbedBuilder {
-                    Title = $"編輯 {serverInfo.ChineseName} 的帳號，或新增一個",
+                    Title = $"__{choseServer.ChineseName}__ 帳號編輯",
                     Description = embedDescription
                 }.Build();
                 preContent = null;
@@ -211,7 +219,7 @@ namespace MitamaBot.Modules
                 x.Embed = preEmbed;
             });
 
-            if (serverInfo == null)
+            if (choseServer == null)
             {
                 return;
             }

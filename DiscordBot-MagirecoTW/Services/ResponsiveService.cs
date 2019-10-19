@@ -165,66 +165,6 @@ namespace MitamaBot.Services
                 //Runtime 沒有發生錯誤，卻出現不應該出現的情形: 有收到答案紙，但兩個答案都是空白的。
                 return int.MinValue;
             }
-
-            //var msg = await WaitForMessageAsync(
-            //    x => 
-            //    {
-            //        if (x.Channel.Id != channelId || x.Author.IsBot || x.Author.IsWebhook)
-            //        {
-            //            return false;
-            //        }
-            //        string content = x.Content.Trim();
-
-            //        if (isCancellable && msgCancelKeywords != null && msgCancelKeywords.Contains(content))
-            //        {
-            //            userChoose = int.MaxValue;
-            //            return true;
-            //        }
-
-            //        if (!int.TryParse(content, out userChoose))
-            //        {
-            //            return false;
-            //        }
-            //        tcs2.SetCanceled();
-            //        return true;
-            //    }
-            //    , null, tcs1);
-
-            //var rct = await WaitForReactionAsync(
-            //    (cache, ch, r) => 
-            //    {
-            //        if (ch.Id != channelId || r.User.Value.IsBot || r.User.Value.IsWebhook)
-            //        {
-            //            return false;
-            //        }
-
-            //        for (int i = 0; i < optionEmojis.Count; i++)
-            //        {
-            //            if (optionEmojis[i].Name == r.Emote.Name)
-            //            {
-            //                if (isCancellable && i == optionEmojis.Count - 1)
-            //                {
-            //                    userChoose = int.MaxValue; //Cancel
-            //                }
-            //                else
-            //                {
-            //                    userChoose = i;
-            //                }
-            //                tcs1.SetCanceled();
-            //                break;
-            //            }
-            //        }
-            //        return false;
-            //    }
-            //    , null, tcs2);
-            //if (msg != null || rct != null)
-            //{
-            //    return userChoose;
-            //}
-            //else
-            //{
-            //    return int.MinValue + 1;
-            //}
         }
 
         /// <summary>
