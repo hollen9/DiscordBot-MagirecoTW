@@ -254,15 +254,16 @@ namespace MitamaBot.Modules
             isCancellable = true;
             preEmojiButtons = ReponseSvc.GetNumberOptionsEmojis(servers.Count, 1, isCancellable);
 
-            //Fire-and-forget (without waiting for completion)
-            CancellationTokenSource tcs_react_adding = new CancellationTokenSource();
-            await Task.Factory.StartNew(async () => await msgPanel.AddReactionsAsync(preEmojiButtons.ToArray(), new RequestOptions() { CancelToken = tcs_react_adding.Token }));
-
             Server choseServer = null;
             string preContent = null;
 
+            //詢問要編輯哪個帳號，還是新增帳號
             try
             {
+                //Fire-and-forget (without waiting for completion)
+                CancellationTokenSource tcs_react_adding = new CancellationTokenSource();
+                await Task.Factory.StartNew(async () => await msgPanel.AddReactionsAsync(preEmojiButtons.ToArray(), new RequestOptions() { CancelToken = tcs_react_adding.Token }));
+
                 userChoseNumber = await ReponseSvc.WaitForNumberAnswerAsync(Context.Channel.Id, preEmojiButtons, 1, isCancellable);
                 tcs_react_adding.Cancel();
 
@@ -305,9 +306,7 @@ namespace MitamaBot.Modules
                     });
                 }
             }
-
             
-
             if (choseServer == null)
             {
                 return;
@@ -317,17 +316,64 @@ namespace MitamaBot.Modules
                         pa.OwnerServerKey == choseServer.ServerKey &&
                         pa.OwnerDiscordId == userId).ToList();
 
-            List<string> options = playerAccountsOfChoseServer.Select(x => new string($"{x.GameId}")).ToList();
-            options.Insert(0, "【新增帳號】");
+            List<string> preOptionsTexts = playerAccountsOfChoseServer.Select(x => new string($"{x.GameId}")).ToList();
+            preOptionsTexts.Insert(0, "【新增帳號】");
 
             preEmbed = DiscordEmbedHelper.BuildLinesOfOptions(
-                $"__{choseServer.ChineseName}__ 帳號編輯", options, 0,ReponseSvc.Options.CancelKeywords);
+                $"__{choseServer.ChineseName}__ 帳號編輯", preOptionsTexts, 0,ReponseSvc.Options.CancelKeywords);
             preContent = null;
 
             await msgPanel.ModifyAsync(x => {
                 x.Content = preContent;
                 x.Embed = preEmbed;
             });
+
+            try
+            {
+                preEmojiButtons = ReponseSvc.GetNumberOptionsEmojis(preOptionsTexts.Count, 0, true);
+
+                //Fire-and-forget (without waiting for completion)
+                CancellationTokenSource tcs_react_adding = new CancellationTokenSource();
+                await Task.Factory.StartNew(async () => await msgPanel.AddReactionsAsync(preEmojiButtons.ToArray(), new RequestOptions() { CancelToken = tcs_react_adding.Token }));
+
+                userChoseNumber = await ReponseSvc.WaitForNumberAnswerAsync(Context.Channel.Id, preEmojiButtons, 0, isCancellable);
+                tcs_react_adding.Cancel();
+
+                if (userChoseNumber == null)
+                {
+                    preEmbed = null;
+                    preContent = $"{Context.User.Mention} 已取消。";
+                    return;
+                }
+                else if (userChoseNumber >= 0 && userChoseNumber < preOptionsTexts.Count)
+                {
+                    preEmbed = null;
+                    preContent = $"{Context.User.Mention} 選擇了 {userChoseNumber}";
+                }
+            }
+            catch (TimeoutException ex)
+            {
+                preEmbed = null;
+                preContent = $"{Context.User.Mention} {ex.Message}";
+                return;
+            }
+            catch (Exception ex)
+            {
+                preEmbed = null;
+                preContent = $"{Context.User.Mention} {ex.Message}";
+                return;
+            }
+            finally
+            {
+                await msgPanel.RemoveAllReactionsAsync();
+                if (preEmbed != null || preContent != null)
+                {
+                    await msgPanel.ModifyAsync(x => {
+                        x.Content = preContent;
+                        x.Embed = preEmbed;
+                    });
+                }
+            }
 
             //string playerId;
 
