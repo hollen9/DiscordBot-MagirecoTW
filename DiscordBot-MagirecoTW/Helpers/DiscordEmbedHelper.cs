@@ -7,14 +7,25 @@ namespace MitamaBot.Helpers
 {
     public static class DiscordEmbedHelper
     {
-        public static Discord.Embed BuildLinesOfOptions(string title, List<string> options, string[] cancelKeywords = null)
+        public static Discord.Embed BuildLinesOfOptions(string title, List<string> options, int start = 1, string[] cancelKeywords = null)
         {
             var eB = new Discord.EmbedBuilder();
             eB.Title = title;
             var sB = new StringBuilder();
-            for (int i = 0; i < options.Count; i++)
+            for (int i = start; i <= options.Count; i++)
             {
-                sB.AppendLine($"{i+1}. {options[i]}");
+                if (start == 0) //zero-based options
+                {
+                    if (i == options.Count)
+                    {
+                        break;
+                    }
+                    sB.AppendLine($"{i}. {options[i]}");
+                }
+                else
+                {
+                    sB.AppendLine($"{i}. {options[i - 1]}");
+                }
             }
             if (cancelKeywords != null)
             {
@@ -24,9 +35,9 @@ namespace MitamaBot.Helpers
             return eB.Build();
         }
 
-        public static Discord.Embed BuildLinesOfOptions(string title, string[] cancelKeywords = null, params string[] options)
+        public static Discord.Embed BuildLinesOfOptions(string title, string[] cancelKeywords = null, int start = 1, params string[] options)
         {
-            return BuildLinesOfOptions(title, cancelKeywords.ToList(), cancelKeywords);
+            return BuildLinesOfOptions(title, cancelKeywords.ToList(), start, cancelKeywords);
         }
     }
 }

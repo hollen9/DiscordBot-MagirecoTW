@@ -247,7 +247,7 @@ namespace MitamaBot.Modules
 
             var embedPromptServer = DiscordEmbedHelper.BuildLinesOfOptions(
                 "遊戲帳號伺服器", servers.Select(x => new string($"{x.ChineseName} `{x.ServerKey}`")
-                ).ToList(), ReponseSvc.Options.CancelKeywords
+                ).ToList(), 1,ReponseSvc.Options.CancelKeywords
                 );
             msgPanel = await ReplyAsync(preContentBuilder.ToString(), false, embedPromptServer);
 
@@ -321,7 +321,7 @@ namespace MitamaBot.Modules
             options.Insert(0, "【新增帳號】");
 
             preEmbed = DiscordEmbedHelper.BuildLinesOfOptions(
-                $"__{choseServer.ChineseName}__ 帳號編輯", options, ReponseSvc.Options.CancelKeywords);
+                $"__{choseServer.ChineseName}__ 帳號編輯", options, 0,ReponseSvc.Options.CancelKeywords);
             preContent = null;
 
             await msgPanel.ModifyAsync(x => {
