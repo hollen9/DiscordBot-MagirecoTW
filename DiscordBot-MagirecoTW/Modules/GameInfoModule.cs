@@ -453,8 +453,63 @@ namespace MitamaBot.Modules
                 }
 
                 var confirmMsg = await ReplyMentionAsync($"> {userAnsMsg.Content}\n確定嗎?");
-                await confirmMsg.AddReactionAsync(new Discord.Emoji("✅"));
-                await confirmMsg.AddReactionAsync(new Discord.Emoji("❎"));
+                
+                try
+                {
+                    //Fire-and-forget (without waiting for completion)
+                    CancellationTokenSource tcs_react_adding = new CancellationTokenSource();
+                    await Task.Factory.StartNew(async () => await confirmMsg.AddReactionsAsync(ReponseSvc.GetBooleanOptionsEmojis(false).ToArray(), new RequestOptions() { CancelToken = tcs_react_adding.Token }));
+                    bool? userChoice = await ReponseSvc.WaitForBooleanAnswerAsync(Context.Channel.Id, false);
+                    tcs_react_adding.Cancel();
+
+                    await confirmMsg.ModifyAsync(x =>
+                    {
+                        if (userChoice == null)
+                        {
+                            x.Content = $"{Context.User.Mention} 已取消。";
+                        }
+                        else
+                        {
+                            x.Content = $"{Context.User.Mention} 選擇: **{ ((bool)userChoice ? "是" : "否") }**。";
+                            
+                            if (userChoice == true)
+                            {
+                                currentPl.Description = userAnsMsg.Content;
+
+                                if (MagirecoInfoSvc.Player.UpsertItem(currentPl, currentPl.DiscordId))
+                                {
+                                    x.Content = $"{Context.User.Mention} 個人簡介更新成功。";
+                                }
+                                else
+                                {
+                                    x.Content = $"{Context.User.Mention} 個人簡介更新失敗。";
+                                }
+                            }
+                            else
+                            {
+                                x.Content = $"{Context.User.Mention} 已取消。";
+                            }
+                        }
+                    });
+                }
+                catch (TimeoutException ex)
+                {
+                    await confirmMsg.ModifyAsync(x =>
+                    {
+                        x.Content = $"{Context.User.Mention} {ex.Message}";
+                    });
+                }
+                catch (Exception ex)
+                {
+                    await confirmMsg.ModifyAsync(x =>
+                    {
+                        x.Content = $"{Context.User.Mention} {ex.Message}";
+                    });
+                }
+                finally
+                {
+                    await confirmMsg.RemoveAllReactionsAsync();
+                }
 
                 var ract = await ReponseSvc.WaitForReactionAsync((cache, ch, r) =>
                 {
