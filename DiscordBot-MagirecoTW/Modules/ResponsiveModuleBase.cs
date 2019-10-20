@@ -131,8 +131,12 @@ namespace MitamaBot.Modules
             Embed preEmbed;
             string preContent;
 
-            preEmbed = null;
-            preContent = $"{Context.User.Mention} {contentConfirmation}";
+            preEmbed = new EmbedBuilder()
+                .WithTitle(title)
+                .WithDescription(contentConfirmation)
+                .WithFooter(isCancellable ? $"取消指令: {string.Join("、", ReponseSvc.Options.CancelKeywords)} " : null)
+                .Build();
+            preContent = null;
 
             if (msgBody == null)
             {
