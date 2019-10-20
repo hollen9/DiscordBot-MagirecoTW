@@ -13,57 +13,51 @@ using System.Threading.Tasks;
 
 namespace MitamaBot.Modules
 {
-    public class GameInfoModule : MyModuleBase
+    public class GameInfoModule : ResponsiveModuleBase
     {
-        //public GameInfoService GameInfoSvc { get; set; }
         public MagirecoInfoService MagirecoInfoSvc { get; set; }
-        public ResponsiveService ReponseSvc { get; set; }
-
+        
         [Command("test-opt", RunMode = RunMode.Async)]
         public async Task TestOptionsAsync()
         {
-            bool isCancellable = true;
-            var emojis = ReponseSvc.GetNumberOptionsEmojis(10, 1, isCancellable);
+            int userChoseNumber = default;
+            bool userChoseBoolean = default;
+            IUserMessage msgBody = null;
 
-            var msg = await ReplyAsync("請選擇");
-            try
+            if (!await AskNumberQuestion(
+                null,
+                "Please choose:",
+                new string[] { "Apple", "Pen"},
+                1, true,
+                (opt, msg) => 
+                {
+                    userChoseNumber = opt;
+                    msgBody = msg;
+                }))
             {
-                //Fire-and-forget (without waiting for completion)
-                CancellationTokenSource tcs_react_adding = new CancellationTokenSource();
-                await Task.Factory.StartNew(async () => await msg.AddReactionsAsync(emojis.ToArray(), new RequestOptions() { CancelToken = tcs_react_adding.Token }));
-                int? userChoice = await ReponseSvc.WaitForNumberAnswerAsync(Context.Channel.Id, emojis, 1, isCancellable, TimeSpan.FromSeconds(5));
-                tcs_react_adding.Cancel();
+                return;
+            }
 
-                await msg.ModifyAsync(x =>
+            if (!await AskBooleanQuestion(
+                msgBody,
+                "FA?",
+                $"You just chose {userChoseNumber}. FA?",
+                true,
+                (opt, msg) =>
                 {
-                    if (userChoice == null)
-                    {
-                        x.Content = $"{Context.User.Mention} 已取消。";
-                    }
-                    else
-                    {
-                        x.Content = $"{Context.User.Mention} 選擇: **{ userChoice }**。";
-                    }
-                });
-            }
-            catch (TimeoutException ex)
+                    userChoseBoolean = opt;
+                    msgBody = msg;
+                }))
             {
-                await msg.ModifyAsync(x =>
-                {
-                    x.Content = $"{Context.User.Mention} {ex.Message}";
-                });
+                return;
             }
-            catch (Exception ex)
+
+            await msgBody.ModifyAsync(x=> 
             {
-                await msg.ModifyAsync(x =>
-                {
-                    x.Content = $"{Context.User.Mention} {ex.Message}";
-                });
-            }
-            finally
-            {
-                await msg.RemoveAllReactionsAsync();
-            }
+                x.Content = $"User chose {userChoseNumber} and said {userChoseBoolean}";
+                x.Embed = null;
+            });
+
         }
 
         [Command("test-bool", RunMode = RunMode.Async)]
@@ -348,7 +342,7 @@ namespace MitamaBot.Modules
                 else if (userChoseNumber >= 0 && userChoseNumber < preOptionsTexts.Count)
                 {
                     preEmbed = null;
-                    preContent = $"{Context.User.Mention} 選擇了 {userChoseNumber}";
+                    preContent = null;
                 }
             }
             catch (TimeoutException ex)
@@ -374,6 +368,23 @@ namespace MitamaBot.Modules
                     });
                 }
             }
+
+            if (userChoseNumber == 0)
+            {
+                preContent = "新增帳號";
+                preEmbed = null;
+            }
+            else
+            {
+                preContent = $"選擇 {userChoseNumber}";
+                preEmbed = null;
+            }
+            await msgPanel.ModifyAsync(x => {
+                x.Content = preContent;
+                x.Embed = preEmbed;
+            });
+
+            
 
             //string playerId;
 
@@ -675,5 +686,7 @@ namespace MitamaBot.Modules
             });
             
         }
+
+        
     }
 }

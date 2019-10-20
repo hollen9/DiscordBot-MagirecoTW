@@ -35,9 +35,9 @@ namespace MitamaBot.Helpers
             return eB.Build();
         }
 
-        public static Discord.Embed BuildLinesOfOptions(string title, string[] cancelKeywords = null, int start = 1, params string[] options)
-        {
-            return BuildLinesOfOptions(title, cancelKeywords.ToList(), start, cancelKeywords);
-        }
+        //public static Discord.Embed BuildLinesOfOptions(string title, string[] cancelKeywords = null, int start = 1, params string[] options)
+        //{
+        //    return BuildLinesOfOptions(title, cancelKeywords.ToList(), start, cancelKeywords);
+        //}
     }
 }

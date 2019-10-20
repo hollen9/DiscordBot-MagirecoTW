@@ -94,7 +94,7 @@ namespace MitamaBot.Services
         public async Task<int?> WaitForNumberAnswerAsync(
             ulong channelId,
             List<Emoji> optionEmojis,
-            byte startNumber = 1,
+            int startNumber = 1,
             bool isCancellable = false,
             TimeSpan? expireAfter = null,
             TaskCompletionSource<SocketMessageOrReaction> tcs = null)

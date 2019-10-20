@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace MitamaBot.Modules
 {
-    public class MyModuleBase : ModuleBase<SocketCommandContext>
+    public class BasicModuleBase : ModuleBase<SocketCommandContext>
     {
         public Task<IUserMessage> ReplyEmbedAsync(Embed embed)
             => ReplyAsync("", false, embed, null);
