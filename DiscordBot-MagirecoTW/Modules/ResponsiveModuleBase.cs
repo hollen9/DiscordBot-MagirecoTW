@@ -1,7 +1,6 @@
 ﻿using Discord;
 using Discord.Commands;
 using Discord.Rest;
-using MitamaBot.Helpers;
 using MitamaBot.Services;
 using System;
 using System.Collections.Generic;
@@ -35,7 +34,7 @@ namespace MitamaBot.Modules
             Embed preEmbed;
             string preContent;
 
-            preEmbed = DiscordEmbedHelper.BuildLinesOfOptions(title, optionsTexts.ToList(), startNumber, ReponseSvc.Options.CancelKeywords);
+            preEmbed = BuildLinesOfOptions(title, optionsTexts.ToList(), startNumber, true);
             preContent = null;
 
             if (msgBody == null)
@@ -210,6 +209,34 @@ namespace MitamaBot.Modules
                     });
                 }
             }
+        }
+
+        public Embed BuildLinesOfOptions(string title, List<string> options, int start = 1, bool isShowCancelCommandHint = true)
+        {
+            var eB = new Discord.EmbedBuilder();
+            eB.Title = title;
+            var sB = new StringBuilder();
+            for (int i = start; i <= options.Count; i++)
+            {
+                if (start == 0) //zero-based options
+                {
+                    if (i == options.Count)
+                    {
+                        break;
+                    }
+                    sB.AppendLine($"{i}. {options[i]}");
+                }
+                else
+                {
+                    sB.AppendLine($"{i}. {options[i - 1]}");
+                }
+            }
+            if (isShowCancelCommandHint)
+            {
+                eB.WithFooter($"取消指令: {string.Join("、", ReponseSvc.Options.CancelKeywords)} ");
+            }
+            eB.Description = sB.ToString();
+            return eB.Build();
         }
     }
 }

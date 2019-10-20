@@ -239,9 +239,9 @@ namespace MitamaBot.Modules
             }
             preContentBuilder.Append($"請問你想要查看哪個伺服器？");
 
-            var embedPromptServer = DiscordEmbedHelper.BuildLinesOfOptions(
+            var embedPromptServer = BuildLinesOfOptions(
                 "遊戲帳號伺服器", servers.Select(x => new string($"{x.ChineseName} `{x.ServerKey}`")
-                ).ToList(), 1,ReponseSvc.Options.CancelKeywords
+                ).ToList(), 1,true
                 );
             msgPanel = await ReplyAsync(preContentBuilder.ToString(), false, embedPromptServer);
 
@@ -313,8 +313,8 @@ namespace MitamaBot.Modules
             List<string> preOptionsTexts = playerAccountsOfChoseServer.Select(x => new string($"{x.GameId}")).ToList();
             preOptionsTexts.Insert(0, "【新增帳號】");
 
-            preEmbed = DiscordEmbedHelper.BuildLinesOfOptions(
-                $"__{choseServer.ChineseName}__ 帳號編輯", preOptionsTexts, 0,ReponseSvc.Options.CancelKeywords);
+            preEmbed = BuildLinesOfOptions(
+                $"__{choseServer.ChineseName}__ 帳號編輯", preOptionsTexts, 0, true);
             preContent = null;
 
             await msgPanel.ModifyAsync(x => {
