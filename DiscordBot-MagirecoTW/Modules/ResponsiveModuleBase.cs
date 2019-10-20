@@ -16,6 +16,20 @@ namespace MitamaBot.Modules
     public class ResponsiveModuleBase : BasicModuleBase
     {
         public ResponsiveService ReponseSvc { get; set; }
+        /// <summary>
+        /// 詢問選擇題
+        /// <para>若有回答數字，則回答 True。</para>
+        /// </summary>
+        /// <param name="msgBody">訊息本體，若為 null 則會發一個新的，並於 validDo 傳回 msgBody : IUserMessage。</param>
+        /// <param name="title">問題標題，也就是 Embed 的標題。</param>
+        /// <param name="optionsTexts">選項</param>
+        /// <param name="startNumber">選項起始數字</param>
+        /// <param name="isCancellable">是否可被使用者取消</param>
+        /// <param name="validDo">若為有效答案做...?</param>
+        /// <param name="cancelDo">若使用者取消做...?</param>
+        /// <param name="timeoutDo">若逾時未答做...?</param>
+        /// <param name="unknownDo">若出現例外狀況做...?</param>
+        /// <returns></returns>
         public async Task<bool> AskNumberQuestion(IUserMessage msgBody, string title, string[] optionsTexts, int startNumber, bool isCancellable, Action<int, IUserMessage> validDo, Action cancelDo = null, Action timeoutDo = null, Action unknownDo = null)
         {
             Embed preEmbed;
@@ -99,6 +113,19 @@ namespace MitamaBot.Modules
             return false;
         }
 
+        /// <summary>
+        /// 詢問是非題
+        /// <para>若有回答是非，則回答 True。</para>
+        /// </summary>
+        /// <param name="msgBody">訊息本體，若為 null 則會發一個新的，並於 validDo 傳回 msgBody : IUserMessage。</param>
+        /// <param name="title">問題標題，也就是 Embed 的標題。</param>
+        /// <param name="contentConfirmation">問題內文</param>
+        /// <param name="isCancellable">是否可被使用者取消</param>
+        /// <param name="validDo">若為有效答案做...?</param>
+        /// <param name="cancelDo">若使用者取消做...?</param>
+        /// <param name="timeoutDo">若逾時未答做...?</param>
+        /// <param name="unknownDo">若出現例外狀況做...?</param>
+        /// <returns></returns>
         public async Task<bool> AskBooleanQuestion(IUserMessage msgBody, string title, string contentConfirmation, bool isCancellable, Action<bool, IUserMessage> validDo, Action cancelDo = null, Action timeoutDo = null, Action unknownDo = null)
         {
             Embed preEmbed;

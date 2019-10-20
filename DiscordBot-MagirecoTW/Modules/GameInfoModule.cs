@@ -369,20 +369,22 @@ namespace MitamaBot.Modules
                 }
             }
 
-            if (userChoseNumber == 0)
-            {
-                preContent = "新增帳號";
-                preEmbed = null;
-            }
-            else
-            {
-                preContent = $"選擇 {userChoseNumber}";
-                preEmbed = null;
-            }
-            await msgPanel.ModifyAsync(x => {
-                x.Content = preContent;
-                x.Embed = preEmbed;
-            });
+            //if (userChoseNumber == 0)
+            //{
+            //    preContent = "新增帳號";
+            //    preEmbed = null;
+            //}
+            //else
+            //{
+            //    preContent = $"選擇 {userChoseNumber}";
+            //    preEmbed = null;
+            //}
+            //await msgPanel.ModifyAsync(x => {
+            //    x.Content = preContent;
+            //    x.Embed = preEmbed;
+            //});
+
+            
 
             
 
