@@ -1,6 +1,7 @@
 ﻿using Discord;
 using Discord.Commands;
 using Discord.Rest;
+using Discord.WebSocket;
 using MitamaBot.Services;
 using System;
 using System.Collections.Generic;
@@ -175,6 +176,157 @@ namespace MitamaBot.Modules
                     preEmbed = null;
                     preContent = null;
                     validDo.Invoke((bool)userChoseBoolean, msgBody);
+                    return true;
+                }
+            }
+            catch (TimeoutException ex)
+            {
+                preEmbed = null;
+                preContent = $"{Context.User.Mention} {ex.Message}";
+                if (timeoutDo != null)
+                {
+                    timeoutDo.Invoke();
+                }
+                return false;
+            }
+            catch (Exception ex)
+            {
+                preEmbed = null;
+                preContent = $"{Context.User.Mention} {ex.Message}";
+                if (unknownDo != null)
+                {
+                    unknownDo.Invoke();
+                }
+                return false;
+            }
+            finally
+            {
+                await msgBody.RemoveAllReactionsAsync();
+                if (preEmbed != null || preContent != null)
+                {
+                    await msgBody.ModifyAsync(x => {
+                        x.Content = preContent;
+                        x.Embed = preEmbed;
+                    });
+                }
+            }
+        }
+
+        public async Task<bool> AskTextQuestion(
+            IUserMessage msgBody,
+            string title,
+            string contentQuestion,
+            bool isCancellableByButton,
+            bool isCancellableByKeyword,
+            Action<string, IUserMessage> validDo,
+            int maxRetries = 3,
+            List<Func<SocketMessage, bool>> conditions = null,
+            List<Action<SocketMessage>> conditionFailDo = null,
+            Action tooManyFail = null,
+            Action cancelDo = null, Action timeoutDo = null, Action unknownDo = null)
+        {
+            Embed preEmbed;
+            string preContent;
+
+            preEmbed = new EmbedBuilder()
+                .WithTitle(title)
+                .WithDescription(contentQuestion)
+                .WithFooter(isCancellableByButton ? $"取消指令: {string.Join("、", ReponseSvc.Options.CancelKeywords)} " : null)
+                .Build();
+            preContent = null;
+
+            if (msgBody == null)
+            {
+                msgBody = await ReplyAsync(preContent, false, preEmbed);
+            }
+            else
+            {
+                await msgBody.ModifyAsync(x => {
+                    x.Content = preContent;
+                    x.Embed = preEmbed;
+                });
+            }
+
+            await msgBody.AddReactionAsync(ReponseSvc.CancelEmoji);
+
+            bool isCancelled = false;
+            int attempts = 0;
+
+            SocketMessage userAnsMsg = null;
+
+            try
+            {
+                do
+                {
+                    attempts++;
+
+                    userAnsMsg = await ReponseSvc.WaitForMessageCancellableAsync(Context.Channel.Id, isCancellableByKeyword);
+
+                    if (conditions != null && conditions.Count > 0)
+                    {
+                        for (int i = 0; i < conditions.Count; i++)
+                        {
+                            if (conditions[i] == null)
+                            {
+                                continue; // Next For-loop
+                            }
+                            if (i >= conditionFailDo.Count)
+                            {
+                                // 已經找不到對應的 Fail Do 了。
+                                break;
+                            }
+                            if (conditionFailDo[i] == null)
+                            {
+                                continue; // Next For-loop
+                            }
+                            if (!conditions[i].Invoke(userAnsMsg))
+                            {
+                                conditionFailDo[i].Invoke(userAnsMsg);
+                                continue; // Go to the end of the While-loop
+                            }
+                        }
+                    }
+                    break;
+                }
+                while (attempts < maxRetries && !isCancelled);
+
+                if (userAnsMsg == null)
+                {
+                    if (attempts >= maxRetries)
+                    {
+                        //TooManyAttempts
+                        if (tooManyFail == null)
+                        {
+                            preContent = $"{Context.User.Mention} 錯誤 {maxRetries} 次，已取消。";
+                            preEmbed = null;
+                        }
+                        else
+                        {
+                            tooManyFail.Invoke();
+                        }
+                        return false;
+                    }
+                    else
+                    {
+                        //Cancelled
+                        if (cancelDo == null)
+                        {
+                            preContent = $"{Context.User.Mention} 已取消。";
+                            preEmbed = null;
+                        }
+                        else
+                        {
+                            cancelDo.Invoke();
+                        }
+                        return false;
+                    }
+                }
+                else
+                {
+                    // Got answer
+                    preEmbed = null;
+                    preContent = null;
+                    validDo.Invoke(userAnsMsg.Content, msgBody);
                     return true;
                 }
             }

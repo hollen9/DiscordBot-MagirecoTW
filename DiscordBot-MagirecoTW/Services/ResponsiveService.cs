@@ -64,6 +64,75 @@ namespace MitamaBot.Services
             return await WaitAsync(tcs, expireAfter);
         }
 
+        public async Task<SocketMessage> WaitForMessageCancellableAsync(
+            ulong channelId, bool isCancellableByKeyword, TimeSpan? expireAfter = null, TaskCompletionSource<SocketMessageOrReaction> tcs = null)
+        {
+            if (tcs == null)
+            {
+                tcs = new TaskCompletionSource<SocketMessageOrReaction>();
+            }
+
+            SocketMessage userAnswer = null;
+
+            Func<SocketMessage, Task> msgPredicate = null;
+            Func<Cacheable<IUserMessage, ulong>, ISocketMessageChannel, SocketReaction, Task> reactPredicate = null;
+
+            msgPredicate = (x) =>
+                {
+                    if (x.Channel.Id != channelId || x.Author.IsBot || x.Author.IsWebhook)
+                    {
+                        return Task.CompletedTask;
+                    }
+                    string content = x.Content.Trim();
+
+                    if (isCancellableByKeyword && Options.CancelKeywords != null && Options.CancelKeywords.Contains(content))
+                    {
+                        userAnswer = null;
+                    }
+                    else
+                    {
+                        userAnswer = x;
+                    }
+                    tcs.TrySetResult(new SocketMessageOrReaction() { Message = x });
+                    _discord.MessageReceived -= msgPredicate;
+                    _discord.ReactionAdded -= reactPredicate;
+                    return Task.CompletedTask;
+                };
+
+            reactPredicate = (cache, ch, r) =>
+            {
+                if (ch.Id != channelId || r.User.Value.IsBot || r.User.Value.IsWebhook)
+                {
+                    return Task.CompletedTask;
+                }
+                if (CancelEmoji.Name == r.Emote.Name)
+                {
+                    tcs.TrySetResult(new SocketMessageOrReaction() { Reaction = r });
+                    _discord.MessageReceived -= msgPredicate;
+                    _discord.ReactionAdded -= reactPredicate;
+                }
+                return Task.CompletedTask;
+            };
+
+            _discord.MessageReceived += msgPredicate;
+            _discord.ReactionAdded += reactPredicate;
+
+            var result = await WaitAsync(tcs, expireAfter);
+            if (result == null)
+            {
+                //逾時未作答，或發生錯誤
+                throw new TimeoutException("逾時未作答");
+            }
+            else if (result.Message != null || result.Reaction != null)
+            {
+                return userAnswer;
+            }
+            else
+            {
+                throw new Exception("Runtime 沒有發生錯誤，卻出現不應該出現的情形: 有收到答案紙，但兩個答案都是空白的。");
+            }
+        }
+
         public async Task<SocketReaction> WaitForReactionAsync(Func<Cacheable<IUserMessage, ulong>, ISocketMessageChannel, SocketReaction, bool> condition, TimeSpan? expireAfter = null, TaskCompletionSource<SocketReaction> tcs = null)
         {
             if (tcs == null) tcs = new TaskCompletionSource<SocketReaction>();

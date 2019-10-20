@@ -1,7 +1,6 @@
 ﻿using Discord;
 using Discord.Commands;
 using MitamaBot.DataModels.Magireco;
-using MitamaBot.Helpers;
 using MitamaBot.Services;
 using MitamaBot.Services.DataStore;
 using System;
@@ -16,7 +15,27 @@ namespace MitamaBot.Modules
     public class GameInfoModule : ResponsiveModuleBase
     {
         public MagirecoInfoService MagirecoInfoSvc { get; set; }
-        
+
+        [Command("test-question", RunMode = RunMode.Async)]
+        public async Task TestTextQuestionAsync()
+        {
+            IUserMessage msgBody = null;
+            string userAns = null;
+            if (!await AskTextQuestion(null, "Please enter some text", "text:", true, true, (ans, msg) =>
+            {
+                msgBody = msg;
+                userAns = ans;
+            }))
+            {
+                return;
+            }
+            await msgBody.ModifyAsync(x=> 
+            {
+                x.Content = $"{Context.User.Mention} said,\n> {userAns ?? "nothing (NULL)"}";
+                x.Embed = null;
+            });
+        }
+
         [Command("test-opt", RunMode = RunMode.Async)]
         public async Task TestOptionsAsync()
         {
