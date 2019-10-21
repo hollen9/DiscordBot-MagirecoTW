@@ -32,7 +32,12 @@ namespace MitamaBot.Services
 
         public NetaSoundService()
         {
-            NetaSoundIndex = new NetaSoundIndexEngine(@"C:\NetaSound");
+            try
+            {
+                NetaSoundIndex = new NetaSoundIndexEngine(@"C:\NetaSound");
+            }
+            catch (DirectoryNotFoundException)
+            {}
         }
 
         //public async Task JoinAudio(IGuild guild, IVoiceChannel target)
