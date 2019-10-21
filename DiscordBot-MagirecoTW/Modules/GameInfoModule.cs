@@ -21,11 +21,7 @@ namespace MitamaBot.Modules
         {
             IUserMessage msgBody = null;
             string userAns = null;
-            if (!await AskTextQuestion(null, "Please enter some text", "text:", true, true, (ans, msg) =>
-            {
-                msgBody = msg;
-                userAns = ans;
-            }))
+            if (!await AskTextQuestion(null, msg => msgBody = msg, "Please enter some text", "text:", true, true, ans => userAns = ans))
             {
                 return;
             }
@@ -44,28 +40,28 @@ namespace MitamaBot.Modules
             IUserMessage msgBody = null;
 
             if (!await AskNumberQuestion(
-                null,
+                null, 
+                msg => msgBody = msg,
                 "Please choose:",
                 new string[] { "Apple", "Pen"},
                 1, true,
-                (opt, msg) => 
+                (opt) => 
                 {
                     userChoseNumber = opt;
-                    msgBody = msg;
                 }))
             {
                 return;
             }
 
             if (!await AskBooleanQuestion(
-                msgBody,
+                msgBody, msg => msgBody = msg
+                ,
                 "FA?",
                 $"You just chose {userChoseNumber}. FA?",
                 true,
-                (opt, msg) =>
+                opt =>
                 {
                     userChoseBoolean = opt;
-                    msgBody = msg;
                 }))
             {
                 return;
@@ -224,7 +220,10 @@ namespace MitamaBot.Modules
             bool isCancellable;
 
             //Start
-            var servers = MagirecoInfoSvc.Server.GetItems().ToList();
+            var serversEm = MagirecoInfoSvc.Server.GetItems();
+
+            var servers = serversEm.ToList();
+
             if (servers == null || servers.Count == 0)
             {
                 await ReplyMentionAsync("噢噢! 好像還沒有設定任何伺服器\n先等管理員新增完成了再來使用吧");
@@ -388,16 +387,46 @@ namespace MitamaBot.Modules
                 }
             }
 
-            //if (userChoseNumber == 0)
-            //{
-            //    preContent = "新增帳號";
-            //    preEmbed = null;
-            //}
-            //else
-            //{
-            //    preContent = $"選擇 {userChoseNumber}";
-            //    preEmbed = null;
-            //}
+            if (userChoseNumber == 0)
+            {
+                bool isOk = false;
+                while (!isOk)
+                {
+                    string playerIdToAdd = null;
+                    // 新增帳號
+                    if (!await AskTextQuestion(msgPanel, msg => msgPanel = msg, "新增帳號", "請輸入8碼的玩家ID。", true, true,
+                        id => playerIdToAdd = id, 3
+                        ))
+                    {
+                        return;
+                    }
+                    
+                    if (!await AskBooleanQuestion(msgPanel, msg => msgPanel = msg,
+                        "帳號新增確認", $"你確認要新增以下帳號至`{choseServer.ChineseName}`嗎?\n> __**{playerIdToAdd}**__",
+                        true, ans => isOk = ans, null, null, null))
+                    {
+                        return;
+                    }
+
+                    if (!isOk)
+                    {
+                        continue;
+                    }
+
+                    await msgPanel.ModifyAsync(x =>
+                    {
+                        x.Embed = null;
+                        x.Content = "New id has been added.";
+                    });
+                    return; 
+                }
+            }
+            else
+            {
+                preContent = $"選擇 {userChoseNumber}";
+                preEmbed = null;
+            }
+
             //await msgPanel.ModifyAsync(x => {
             //    x.Content = preContent;
             //    x.Embed = preEmbed;

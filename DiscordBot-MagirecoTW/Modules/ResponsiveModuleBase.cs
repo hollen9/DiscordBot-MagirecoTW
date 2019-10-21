@@ -20,7 +20,7 @@ namespace MitamaBot.Modules
         /// 詢問選擇題
         /// <para>若有回答數字，則回答 True。</para>
         /// </summary>
-        /// <param name="msgBody">訊息本體，若為 null 則會發一個新的，並於 validDo 傳回 msgBody : IUserMessage。</param>
+        /// <param name="msgBody">訊息本體，若為 null 則會發一個新的</param>
         /// <param name="title">問題標題，也就是 Embed 的標題。</param>
         /// <param name="optionsTexts">選項</param>
         /// <param name="startNumber">選項起始數字</param>
@@ -30,7 +30,7 @@ namespace MitamaBot.Modules
         /// <param name="timeoutDo">若逾時未答做...?</param>
         /// <param name="unknownDo">若出現例外狀況做...?</param>
         /// <returns></returns>
-        public async Task<bool> AskNumberQuestion(IUserMessage msgBody, string title, string[] optionsTexts, int startNumber, bool isCancellable, Action<int, IUserMessage> validDo, Action cancelDo = null, Action timeoutDo = null, Action unknownDo = null)
+        public async Task<bool> AskNumberQuestion(IUserMessage msgBody, Action<IUserMessage> modifiedMsg, string title, string[] optionsTexts, int startNumber, bool isCancellable, Action<int> validDo, Action cancelDo = null, Action timeoutDo = null, Action unknownDo = null)
         {
             Embed preEmbed;
             string preContent;
@@ -75,7 +75,7 @@ namespace MitamaBot.Modules
                 {
                     preEmbed = null;
                     preContent = null;
-                    validDo.Invoke((int)userChoseNumber, msgBody);
+                    validDo.Invoke((int)userChoseNumber);
                     return true;
                 }
             }
@@ -109,6 +109,11 @@ namespace MitamaBot.Modules
                         x.Embed = preEmbed;
                     });
                 }
+
+                if (msgBody != null)
+                {
+                    modifiedMsg.Invoke(msgBody);
+                }
             }
             return false;
         }
@@ -117,7 +122,7 @@ namespace MitamaBot.Modules
         /// 詢問是非題
         /// <para>若有回答是非，則回答 True。</para>
         /// </summary>
-        /// <param name="msgBody">訊息本體，若為 null 則會發一個新的，並於 validDo 傳回 msgBody : IUserMessage。</param>
+        /// <param name="msgBody">訊息本體，若為 null 則會發一個新的</param>
         /// <param name="title">問題標題，也就是 Embed 的標題。</param>
         /// <param name="contentConfirmation">問題內文</param>
         /// <param name="isCancellable">是否可被使用者取消</param>
@@ -126,7 +131,7 @@ namespace MitamaBot.Modules
         /// <param name="timeoutDo">若逾時未答做...?</param>
         /// <param name="unknownDo">若出現例外狀況做...?</param>
         /// <returns></returns>
-        public async Task<bool> AskBooleanQuestion(IUserMessage msgBody, string title, string contentConfirmation, bool isCancellable, Action<bool, IUserMessage> validDo, Action cancelDo = null, Action timeoutDo = null, Action unknownDo = null)
+        public async Task<bool> AskBooleanQuestion(IUserMessage msgBody, Action<IUserMessage> modifiedMsg, string title, string contentConfirmation, bool isCancellable, Action<bool> validDo, Action cancelDo = null, Action timeoutDo = null, Action unknownDo = null)
         {
             Embed preEmbed;
             string preContent;
@@ -175,7 +180,7 @@ namespace MitamaBot.Modules
                 {
                     preEmbed = null;
                     preContent = null;
-                    validDo.Invoke((bool)userChoseBoolean, msgBody);
+                    validDo.Invoke((bool)userChoseBoolean);
                     return true;
                 }
             }
@@ -209,16 +214,21 @@ namespace MitamaBot.Modules
                         x.Embed = preEmbed;
                     });
                 }
+                if (msgBody != null)
+                {
+                    modifiedMsg.Invoke(msgBody);
+                }
             }
         }
 
         public async Task<bool> AskTextQuestion(
             IUserMessage msgBody,
+            Action<IUserMessage> msgModified,
             string title,
             string contentQuestion,
             bool isCancellableByButton,
             bool isCancellableByKeyword,
-            Action<string, IUserMessage> validDo,
+            Action<string> validDo,
             int maxRetries = 3,
             List<Func<SocketMessage, bool>> conditions = null,
             List<Action<SocketMessage>> conditionFailDo = null,
@@ -326,7 +336,7 @@ namespace MitamaBot.Modules
                     // Got answer
                     preEmbed = null;
                     preContent = null;
-                    validDo.Invoke(userAnsMsg.Content, msgBody);
+                    validDo.Invoke(userAnsMsg.Content);
                     return true;
                 }
             }
@@ -359,6 +369,10 @@ namespace MitamaBot.Modules
                         x.Content = preContent;
                         x.Embed = preEmbed;
                     });
+                }
+                if (msgBody != null)
+                {
+                    msgModified.Invoke(msgBody);
                 }
             }
         }
