@@ -16,21 +16,21 @@ namespace MitamaBot.Modules
     {
         public MagirecoInfoService MagirecoInfoSvc { get; set; }
 
-        [Command("test-question", RunMode = RunMode.Async)]
-        public async Task TestTextQuestionAsync()
-        {
-            IUserMessage msgBody = null;
-            string userAns = null;
-            if (!await AskTextQuestion(null, msg => msgBody = msg, "Please enter some text", "text:", true, true, ans => userAns = ans))
-            {
-                return;
-            }
-            await msgBody.ModifyAsync(x=> 
-            {
-                x.Content = $"{Context.User.Mention} said,\n> {userAns ?? "nothing (NULL)"}";
-                x.Embed = null;
-            });
-        }
+        //[Command("test-question", RunMode = RunMode.Async)]
+        //public async Task TestTextQuestionAsync()
+        //{
+        //    IUserMessage msgBody = null;
+        //    string userAns = null;
+        //    if (!await AskTextQuestion(null, msg => msgBody = msg, "Please enter some text", "text:", true, true, ans => userAns = ans))
+        //    {
+        //        return;
+        //    }
+        //    await msgBody.ModifyAsync(x=> 
+        //    {
+        //        x.Content = $"{Context.User.Mention} said,\n> {userAns ?? "nothing (NULL)"}";
+        //        x.Embed = null;
+        //    });
+        //}
 
         [Command("test-opt", RunMode = RunMode.Async)]
         public async Task TestOptionsAsync()
@@ -416,15 +416,11 @@ namespace MitamaBot.Modules
                         }
                     };
 
+                    var playerIdAnswer = await AskTextQuestion(
+                        msgPanel, msg => msgPanel = msg, "新增帳號", "請輸入8碼的玩家ID。", true, true, maxAttempts, preIdConditions, conditionsFailDo);
 
                     // 新增帳號
-                    if (!await AskTextQuestion(msgPanel, msg => msgPanel = msg, "新增帳號", "請輸入8碼的玩家ID。", true, true,
-                        id => playerIdToAdd = id, maxAttempts, preIdConditions, conditionsFailDo,
-                        () => isAbort = true,
-                        () => isAbort = true,
-                        () => isAbort = true,
-                        () => isAbort = true
-                        ))
+                    if (!playerIdAnswer.IsUserAnswered || playerIdAnswer.IsCancelled)
                     {
                         return;
                     }

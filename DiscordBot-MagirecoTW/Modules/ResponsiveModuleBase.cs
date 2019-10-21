@@ -202,20 +202,19 @@ namespace MitamaBot.Modules
             }
         }
 
-        public async Task<bool> AskTextQuestion(
+        public async Task<ResponsiveTextResult> AskTextQuestion(
             IUserMessage msgBody,
             Action<IUserMessage> msgModified,
             string title,
             string contentQuestion,
             bool isCancellableByButton,
             bool isCancellableByKeyword,
-            Action<string> validDo,
             int maxRetries = 3,
             List<Func<SocketMessage, bool>> conditions = null,
-            List<Action<SocketMessage, int>> conditionFailDo = null,
-            Action tooManyFail = null,
-            Action cancelDo = null, Action timeoutDo = null, Action unknownDo = null)
+            List<Action<SocketMessage, int>> conditionFailDo = null)
         {
+            var result = new ResponsiveTextResult();
+
             Embed preEmbed;
             string preContent;
 
@@ -252,11 +251,13 @@ namespace MitamaBot.Modules
                     attempts++;
 
                     userAnsMsg = await ReponseSvc.WaitForMessageCancellableAsync(Context.Channel.Id, isCancellableByKeyword);
+                    result.IsCancelled = userAnsMsg.IsCancelled;
+                    result.Value = userAnsMsg?.Message?.Content;
+
                     bool isRestart = false;
 
                     if (userAnsMsg.IsCancelled)
                     {
-                        
                         break;
                     }
 
@@ -299,13 +300,10 @@ namespace MitamaBot.Modules
                     if (attempts > maxRetries)
                     {
                         //TooManyAttempts
-                        if (tooManyFail != null)
-                        {
-                            tooManyFail.Invoke();
-                        }
                         preContent = $"{Context.User.Mention} 錯誤超過 {maxRetries} 次，已取消。";
                         preEmbed = null;
-                        return false;
+                        result.IsTooManyAttempts = true;
+                        return result;
                     }
                     else
                     {
@@ -315,42 +313,35 @@ namespace MitamaBot.Modules
                 else if (userAnsMsg.IsCancelled)
                 {
                     //Cancelled
-                    if (cancelDo != null)
-                    {
-                        cancelDo.Invoke();
-                    }
+                    
                     preContent = $"{Context.User.Mention} 已取消。";
                     preEmbed = null;
-                    return false;
+                    result.IsCancelled = true;
+
+                    return result;
                 }
                 else
                 {
                     // Got answer
                     preEmbed = null;
                     preContent = null;
-                    validDo.Invoke(userAnsMsg.Message.Content);
-                    return true;
+                    
+                    return result;
                 }
             }
             catch (TimeoutException ex)
             {
                 preEmbed = null;
                 preContent = $"{Context.User.Mention} {ex.Message}";
-                if (timeoutDo != null)
-                {
-                    timeoutDo.Invoke();
-                }
-                return false;
+                result.IsTimedout = true;
+                return result;
             }
             catch (Exception ex)
             {
                 preEmbed = null;
                 preContent = $"{Context.User.Mention} {ex.Message}";
-                if (unknownDo != null)
-                {
-                    unknownDo.Invoke();
-                }
-                return false;
+                result.UnknownError = ex;
+                return result;
             }
             finally
             {
@@ -452,6 +443,9 @@ namespace MitamaBot.Modules
         public class ResponsiveNumberResult : BaseResponsiveResult<int?>
         {}
         public class ResponsiveTextResult : BaseResponsiveResult<string>
-        {}
+        {
+            public bool IsTooManyAttempts { get; set; }
+            public new bool IsUserAnswered => base.IsUserAnswered && !IsTooManyAttempts;
+        }
     }
 }
