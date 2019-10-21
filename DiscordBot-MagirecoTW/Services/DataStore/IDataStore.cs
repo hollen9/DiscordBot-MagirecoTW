@@ -13,6 +13,7 @@ namespace MitamaBot.Services.DataStore
     /// <typeparam name="T2">The type of PrimaryKey</typeparam>
     public interface IDataStore<T1, T2>
     {
+        T2 AddItem(T1 item);
         bool UpsertItem(T1 item, T2 id);
         bool DeleteItem(T2 id);
         IEnumerable<T1> GetItems();

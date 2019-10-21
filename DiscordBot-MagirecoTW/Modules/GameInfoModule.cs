@@ -391,14 +391,11 @@ namespace MitamaBot.Modules
                 while (!isOk || isAbort)
                 {
                     isAbort = false;
-
-                    string playerIdToAdd = null;
-
                     var preIdConditions = new List<Func<Discord.WebSocket.SocketMessage, bool>> 
                     {
                         userMsg => 
                         {
-                            if (userMsg.Content.Length > 8 || userMsg.Content.Length <=0)
+                            if (userMsg.Content.Length != 8)
                             {
                                 return false;
                             }
@@ -431,7 +428,7 @@ namespace MitamaBot.Modules
                     }
 
                     var addConfirmAnswer = await AskBooleanQuestion(msgPanel, msg => msgPanel = msg,
-                        "帳號新增確認", $"你確認要新增以下帳號至`{choseServer.ChineseName}`嗎?\n> __**{playerIdToAdd}**__",
+                        "帳號新增確認", $"你確認要新增以下帳號至`{choseServer.ChineseName}`嗎?\n> **{playerIdAnswer.Value}**",
                         true);
 
                     if (addConfirmAnswer.Value == false)
@@ -444,12 +441,27 @@ namespace MitamaBot.Modules
                         return;
                     }
 
-                    await msgPanel.ModifyAsync(x =>
+                    var newAccountItem = new MitamaBot.DataModels.Magireco.PlayerAccount();
+                    newAccountItem.Id = MagirecoInfoSvc.PlayerAccount.AddItem(newAccountItem);
+
+                    if (newAccountItem.Id == null)
                     {
-                        x.Embed = null;
-                        x.Content = "New id has been added.";
-                    });
-                    return; 
+                        await msgPanel.ModifyAsync(x =>
+                        {
+                            x.Embed = null;
+                            x.Content = $"{Context.User.Mention} ID 新增失敗。";
+                        });
+                        return;
+                    }
+                    else
+                    {
+                        await msgPanel.ModifyAsync(x =>
+                        {
+                            x.Embed = null;
+                            x.Content = $"{Context.User.Mention} ID 新增成功。";
+                        });
+                        return;
+                    }
                 }
             }
             else

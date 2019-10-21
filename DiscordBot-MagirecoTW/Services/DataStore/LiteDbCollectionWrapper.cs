@@ -16,6 +16,11 @@ namespace MitamaBot.Services.DataStore
             Collection = Database.GetCollection<T>();
         }
 
+        public BsonValue AddItem(T item)
+        {
+            return Collection.Insert(item);
+        }
+
         public bool UpsertItem(T item, BsonValue id)
         {
             var existed = Collection.FindById(id);

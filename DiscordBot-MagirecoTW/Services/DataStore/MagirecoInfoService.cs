@@ -47,5 +47,18 @@ namespace MitamaBot.Services.DataStore
             public PlayerDailyStatCollectionWrapper(LiteDatabase database) : base(database)
             { }
         }
+        public class FollowingInfoCollectionWrapper : LiteDbCollectionWrapper<FollowingInfo>
+        {
+            public FollowingInfoCollectionWrapper(LiteDatabase database) : base(database)
+            { }
+            public IEnumerable<FollowingInfo> FindMyFollowingAccount(Guid myAccountId)
+            {
+                return this.FindItems(x => x.MyAccountId == myAccountId);
+            }
+            public IEnumerable<FollowingInfo> FindMyFollowerAccount(Guid myAccountId)
+            {
+                return this.FindItems(x => x.FollowingAccountId == myAccountId);
+            }
+        }
     }
 }
