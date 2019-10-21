@@ -441,9 +441,14 @@ namespace MitamaBot.Modules
 
                     if (!await AskBooleanQuestion(msgPanel, msg => msgPanel = msg,
                         "帳號新增確認", $"你確認要新增以下帳號至`{choseServer.ChineseName}`嗎?\n> __**{playerIdToAdd}**__",
-                        true, ans => isOk = ans, null, null, null))
+                        true, ans => isOk = ans, () => isAbort = true, null, null))
                     {
                         continue;
+                    }
+
+                    if (isAbort)
+                    {
+                        return;
                     }
 
                     if (!isOk)

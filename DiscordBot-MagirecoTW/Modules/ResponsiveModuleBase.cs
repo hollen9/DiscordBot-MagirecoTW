@@ -174,7 +174,7 @@ namespace MitamaBot.Modules
                     {
                         cancelDo?.Invoke();
                     }
-                    return false;
+                    return true;
                 }
                 else
                 {
