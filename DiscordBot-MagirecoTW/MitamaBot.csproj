@@ -7,6 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Services\Menu\**" />
+    <EmbeddedResource Remove="Services\Menu\**" />
+    <None Remove="Services\Menu\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Remove="Services\NetaSoundService - Copy.bak" />
   </ItemGroup>
 
@@ -46,10 +52,6 @@
     <None Update="opus.dll">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Services\Menu\" />
   </ItemGroup>
 
 </Project>
