@@ -389,29 +389,64 @@ namespace MitamaBot.Modules
 
             if (userChoseNumber == 0)
             {
-                bool isOk = false;
-                while (!isOk)
+                bool isOk = false,                     
+                     isAbort = false;
+                while (!isOk || isAbort)
                 {
+                    isAbort = false;
+
                     string playerIdToAdd = null;
+
+                    var preIdConditions = new List<Func<Discord.WebSocket.SocketMessage, bool>> 
+                    {
+                        userMsg => 
+                        {
+                            if (userMsg.Content.Length > 8 || userMsg.Content.Length <=0)
+                            {
+                                return false;
+                            }
+                            return true;
+                        }
+                    };
+
+                    var conditionsFailDo = new List<Action<Discord.WebSocket.SocketMessage>> {
+                        async userMsg =>
+                        {
+                            await msgPanel.ModifyAsync(x=>x.Content = $"{Context.User.Mention} 玩家ID為8碼!");
+                        }
+                    };
+
+
                     // 新增帳號
                     if (!await AskTextQuestion(msgPanel, msg => msgPanel = msg, "新增帳號", "請輸入8碼的玩家ID。", true, true,
-                        id => playerIdToAdd = id, 3
+                        id => playerIdToAdd = id, 3, preIdConditions, conditionsFailDo,
+                        () => isAbort = true,
+                        () => isAbort = true,
+                        () => isAbort = true,
+                        () => isAbort = true
                         ))
                     {
                         return;
                     }
                     
+                    if (isAbort)
+                    {
+                        return;
+                    }
+
                     if (!await AskBooleanQuestion(msgPanel, msg => msgPanel = msg,
                         "帳號新增確認", $"你確認要新增以下帳號至`{choseServer.ChineseName}`嗎?\n> __**{playerIdToAdd}**__",
                         true, ans => isOk = ans, null, null, null))
                     {
-                        return;
+                        continue;
                     }
 
                     if (!isOk)
                     {
                         continue;
                     }
+
+
 
                     await msgPanel.ModifyAsync(x =>
                     {

@@ -271,6 +271,7 @@ namespace MitamaBot.Modules
                     attempts++;
 
                     userAnsMsg = await ReponseSvc.WaitForMessageCancellableAsync(Context.Channel.Id, isCancellableByKeyword);
+                    bool isRestart = false;
 
                     if (conditions != null && conditions.Count > 0)
                     {
@@ -292,42 +293,42 @@ namespace MitamaBot.Modules
                             if (!conditions[i].Invoke(userAnsMsg))
                             {
                                 conditionFailDo[i].Invoke(userAnsMsg);
-                                continue; // Go to the end of the While-loop
+                                isRestart = true; // Go to the end of the While-loop
+                                userAnsMsg = null;
+                                break; 
                             }
                         }
                     }
+                    if (isRestart)
+                    {
+                        continue;
+                    }
                     break;
                 }
-                while (attempts < maxRetries && !isCancelled);
+                while (attempts <= maxRetries && !isCancelled);
 
                 if (userAnsMsg == null)
                 {
-                    if (attempts >= maxRetries)
+                    if (attempts > maxRetries)
                     {
                         //TooManyAttempts
-                        if (tooManyFail == null)
-                        {
-                            preContent = $"{Context.User.Mention} 錯誤 {maxRetries} 次，已取消。";
-                            preEmbed = null;
-                        }
-                        else
+                        if (tooManyFail != null)
                         {
                             tooManyFail.Invoke();
                         }
+                        preContent = $"{Context.User.Mention} 錯誤超過 {maxRetries} 次，已取消。";
+                        preEmbed = null;
                         return false;
                     }
                     else
                     {
                         //Cancelled
-                        if (cancelDo == null)
-                        {
-                            preContent = $"{Context.User.Mention} 已取消。";
-                            preEmbed = null;
-                        }
-                        else
+                        if (cancelDo != null)
                         {
                             cancelDo.Invoke();
                         }
+                        preContent = $"{Context.User.Mention} 已取消。";
+                        preEmbed = null;
                         return false;
                     }
                 }
@@ -374,6 +375,31 @@ namespace MitamaBot.Modules
                 {
                     msgModified.Invoke(msgBody);
                 }
+            }
+        }
+
+
+        public async Task SendTextDialog(IUserMessage msgBody, Action<IUserMessage> modifiedMsg, string title, string content)
+        {
+            Embed preEmbed;
+            string preContent;
+
+            preEmbed = new EmbedBuilder()
+                .WithTitle(title)
+                .WithDescription(content)
+                .Build();
+            preContent = null;
+
+            if (msgBody == null)
+            {
+                msgBody = await ReplyAsync(preContent, false, preEmbed);
+            }
+            else
+            {
+                await msgBody.ModifyAsync(x => {
+                    x.Content = preContent;
+                    x.Embed = preEmbed;
+                });
             }
         }
 
