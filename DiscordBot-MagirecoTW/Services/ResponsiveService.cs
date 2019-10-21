@@ -64,7 +64,7 @@ namespace MitamaBot.Services
             return await WaitAsync(tcs, expireAfter);
         }
 
-        public async Task<SocketMessage> WaitForMessageCancellableAsync(
+        public async Task<SocketMessageCancellable> WaitForMessageCancellableAsync(
             ulong channelId, bool isCancellableByKeyword, TimeSpan? expireAfter = null, TaskCompletionSource<SocketMessageOrReaction> tcs = null)
         {
             if (tcs == null)
@@ -72,7 +72,7 @@ namespace MitamaBot.Services
                 tcs = new TaskCompletionSource<SocketMessageOrReaction>();
             }
 
-            SocketMessage userAnswer = null;
+            SocketMessageCancellable userAnswer = new SocketMessageCancellable();
 
             Func<SocketMessage, Task> msgPredicate = null;
             Func<Cacheable<IUserMessage, ulong>, ISocketMessageChannel, SocketReaction, Task> reactPredicate = null;
@@ -87,11 +87,11 @@ namespace MitamaBot.Services
 
                     if (isCancellableByKeyword && Options.CancelKeywords != null && Options.CancelKeywords.Contains(content))
                     {
-                        userAnswer = null;
+                        userAnswer.IsCancelled = true;
                     }
                     else
                     {
-                        userAnswer = x;
+                        userAnswer.Message = x;
                     }
                     tcs.TrySetResult(new SocketMessageOrReaction() { Message = x });
                     _discord.MessageReceived -= msgPredicate;
@@ -107,9 +107,10 @@ namespace MitamaBot.Services
                 }
                 if (CancelEmoji.Name == r.Emote.Name)
                 {
-                    tcs.TrySetResult(new SocketMessageOrReaction() { Reaction = r });
+                    userAnswer.IsCancelled = true;
                     _discord.MessageReceived -= msgPredicate;
                     _discord.ReactionAdded -= reactPredicate;
+                    tcs.TrySetResult(new SocketMessageOrReaction() { Reaction = r });
                 }
                 return Task.CompletedTask;
             };
@@ -429,6 +430,12 @@ namespace MitamaBot.Services
         {
             public SocketMessage Message { get; set; }
             public SocketReaction Reaction { get; set; }
+        }
+
+        public class SocketMessageCancellable
+        {
+            public SocketMessage Message { get; set; }
+            public bool IsCancelled { get; set; }
         }
     }
 

@@ -391,6 +391,8 @@ namespace MitamaBot.Modules
             {
                 bool isOk = false,                     
                      isAbort = false;
+                int maxAttempts = 3;
+
                 while (!isOk || isAbort)
                 {
                     isAbort = false;
@@ -409,17 +411,20 @@ namespace MitamaBot.Modules
                         }
                     };
 
-                    var conditionsFailDo = new List<Action<Discord.WebSocket.SocketMessage>> {
-                        async userMsg =>
+                    var conditionsFailDo = new List<Action<Discord.WebSocket.SocketMessage, int>> {
+                        async (userMsg, attempts) =>
                         {
-                            await msgPanel.ModifyAsync(x=>x.Content = $"{Context.User.Mention} 玩家ID為8碼!");
+                            if (attempts <= maxAttempts)
+                            {
+                                await msgPanel.ModifyAsync(x=>x.Content = $"{Context.User.Mention} 玩家ID為8碼! `(還剩{maxAttempts-attempts}次機會)`");
+                            }
                         }
                     };
 
 
                     // 新增帳號
                     if (!await AskTextQuestion(msgPanel, msg => msgPanel = msg, "新增帳號", "請輸入8碼的玩家ID。", true, true,
-                        id => playerIdToAdd = id, 3, preIdConditions, conditionsFailDo,
+                        id => playerIdToAdd = id, maxAttempts, preIdConditions, conditionsFailDo,
                         () => isAbort = true,
                         () => isAbort = true,
                         () => isAbort = true,
@@ -445,8 +450,6 @@ namespace MitamaBot.Modules
                     {
                         continue;
                     }
-
-
 
                     await msgPanel.ModifyAsync(x =>
                     {

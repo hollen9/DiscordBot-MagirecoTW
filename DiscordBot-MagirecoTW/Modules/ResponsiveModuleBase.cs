@@ -231,7 +231,7 @@ namespace MitamaBot.Modules
             Action<string> validDo,
             int maxRetries = 3,
             List<Func<SocketMessage, bool>> conditions = null,
-            List<Action<SocketMessage>> conditionFailDo = null,
+            List<Action<SocketMessage, int>> conditionFailDo = null,
             Action tooManyFail = null,
             Action cancelDo = null, Action timeoutDo = null, Action unknownDo = null)
         {
@@ -259,10 +259,10 @@ namespace MitamaBot.Modules
 
             await msgBody.AddReactionAsync(ReponseSvc.CancelEmoji);
 
-            bool isCancelled = false;
+            //bool isCancelled = false;
             int attempts = 0;
 
-            SocketMessage userAnsMsg = null;
+            ResponsiveService.SocketMessageCancellable userAnsMsg = null;
 
             try
             {
@@ -272,6 +272,12 @@ namespace MitamaBot.Modules
 
                     userAnsMsg = await ReponseSvc.WaitForMessageCancellableAsync(Context.Channel.Id, isCancellableByKeyword);
                     bool isRestart = false;
+
+                    if (userAnsMsg.IsCancelled)
+                    {
+                        
+                        break;
+                    }
 
                     if (conditions != null && conditions.Count > 0)
                     {
@@ -290,9 +296,9 @@ namespace MitamaBot.Modules
                             {
                                 continue; // Next For-loop
                             }
-                            if (!conditions[i].Invoke(userAnsMsg))
+                            if (!conditions[i].Invoke(userAnsMsg.Message))
                             {
-                                conditionFailDo[i].Invoke(userAnsMsg);
+                                conditionFailDo[i].Invoke(userAnsMsg.Message, attempts);
                                 isRestart = true; // Go to the end of the While-loop
                                 userAnsMsg = null;
                                 break; 
@@ -305,7 +311,7 @@ namespace MitamaBot.Modules
                     }
                     break;
                 }
-                while (attempts <= maxRetries && !isCancelled);
+                while (attempts <= maxRetries);
 
                 if (userAnsMsg == null)
                 {
@@ -322,22 +328,26 @@ namespace MitamaBot.Modules
                     }
                     else
                     {
-                        //Cancelled
-                        if (cancelDo != null)
-                        {
-                            cancelDo.Invoke();
-                        }
-                        preContent = $"{Context.User.Mention} 已取消。";
-                        preEmbed = null;
-                        return false;
+                        throw new Exception("錯誤未達上限，但遇到錯誤所以中止。");
                     }
+                }
+                else if (userAnsMsg.IsCancelled)
+                {
+                    //Cancelled
+                    if (cancelDo != null)
+                    {
+                        cancelDo.Invoke();
+                    }
+                    preContent = $"{Context.User.Mention} 已取消。";
+                    preEmbed = null;
+                    return false;
                 }
                 else
                 {
                     // Got answer
                     preEmbed = null;
                     preContent = null;
-                    validDo.Invoke(userAnsMsg.Content);
+                    validDo.Invoke(userAnsMsg.Message.Content);
                     return true;
                 }
             }
