@@ -35,41 +35,36 @@ namespace MitamaBot.Modules
         [Command("test-opt", RunMode = RunMode.Async)]
         public async Task TestOptionsAsync()
         {
-            int userChoseNumber = default;
-            bool userChoseBoolean = default;
+            //int userChoseNumber = default;
+            //bool userChoseBoolean = default;
             IUserMessage msgBody = null;
 
-            if (!await AskNumberQuestion(
-                null, 
+            var userNumberAnswer = await AskNumberQuestion(
+                null,
                 msg => msgBody = msg,
                 "Please choose:",
-                new string[] { "Apple", "Pen"},
-                1, true,
-                (opt) => 
-                {
-                    userChoseNumber = opt;
-                }))
+                new string[] { "Apple", "Pen" },
+                1, true);
+            if (!userNumberAnswer.IsUserAnswered || userNumberAnswer.IsCancelled)
             {
                 return;
             }
 
-            if (!await AskBooleanQuestion(
+            var userBoolAnswer = await AskBooleanQuestion(
                 msgBody, msg => msgBody = msg
                 ,
                 "FA?",
-                $"You just chose {userChoseNumber}. FA?",
-                true,
-                opt =>
-                {
-                    userChoseBoolean = opt;
-                }))
+                $"You just chose {userNumberAnswer.Value}. FA?",
+                true);
+
+            if (!userBoolAnswer.IsUserAnswered || userBoolAnswer.IsCancelled)
             {
                 return;
             }
 
             await msgBody.ModifyAsync(x=> 
             {
-                x.Content = $"User chose {userChoseNumber} and said {userChoseBoolean}";
+                x.Content = $"User chose {userNumberAnswer.Value} and said {userBoolAnswer.Value}";
                 x.Embed = null;
             });
 
@@ -439,21 +434,18 @@ namespace MitamaBot.Modules
                         return;
                     }
 
-                    if (!await AskBooleanQuestion(msgPanel, msg => msgPanel = msg,
+                    var addConfirmAnswer = await AskBooleanQuestion(msgPanel, msg => msgPanel = msg,
                         "帳號新增確認", $"你確認要新增以下帳號至`{choseServer.ChineseName}`嗎?\n> __**{playerIdToAdd}**__",
-                        true, ans => isOk = ans, () => isAbort = true, null, null))
+                        true);
+
+                    if (addConfirmAnswer.Value == false)
                     {
                         continue;
                     }
 
-                    if (isAbort)
+                    if (addConfirmAnswer.IsCancelled || addConfirmAnswer.IsTimedout || addConfirmAnswer.IsUnknownErrorOccurred)
                     {
                         return;
-                    }
-
-                    if (!isOk)
-                    {
-                        continue;
                     }
 
                     await msgPanel.ModifyAsync(x =>

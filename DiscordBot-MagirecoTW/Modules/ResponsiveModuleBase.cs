@@ -18,20 +18,17 @@ namespace MitamaBot.Modules
         public ResponsiveService ReponseSvc { get; set; }
         /// <summary>
         /// 詢問選擇題
-        /// <para>若有回答數字，則回答 True。</para>
         /// </summary>
         /// <param name="msgBody">訊息本體，若為 null 則會發一個新的</param>
         /// <param name="title">問題標題，也就是 Embed 的標題。</param>
         /// <param name="optionsTexts">選項</param>
         /// <param name="startNumber">選項起始數字</param>
         /// <param name="isCancellable">是否可被使用者取消</param>
-        /// <param name="validDo">若為有效答案做...?</param>
-        /// <param name="cancelDo">若使用者取消做...?</param>
-        /// <param name="timeoutDo">若逾時未答做...?</param>
-        /// <param name="unknownDo">若出現例外狀況做...?</param>
         /// <returns></returns>
-        public async Task<bool> AskNumberQuestion(IUserMessage msgBody, Action<IUserMessage> modifiedMsg, string title, string[] optionsTexts, int startNumber, bool isCancellable, Action<int> validDo, Action cancelDo = null, Action timeoutDo = null, Action unknownDo = null)
+        public async Task<ResponsiveNumberResult> AskNumberQuestion(IUserMessage msgBody, Action<IUserMessage> modifiedMsg, string title, string[] optionsTexts, int startNumber, bool isCancellable)
         {
+            var result = new ResponsiveNumberResult();
+
             Embed preEmbed;
             string preContent;
 
@@ -59,45 +56,38 @@ namespace MitamaBot.Modules
                 await Task.Factory.StartNew(async () => await msgBody.AddReactionsAsync(preEmojiButtons.ToArray(), new RequestOptions() { CancelToken = tcs_react_adding.Token }));
 
                 int? userChoseNumber = await ReponseSvc.WaitForNumberAnswerAsync(Context.Channel.Id, preEmojiButtons, startNumber, isCancellable);
-                tcs_react_adding.Cancel();
+                result.Value = userChoseNumber;
+
+                tcs_react_adding.Cancel(); // Stop adding emoji buttons 
 
                 if (userChoseNumber == null)
                 {
                     preEmbed = null;
                     preContent = $"{Context.User.Mention} 已取消。";
-                    if (cancelDo != null)
-                    {
-                        cancelDo?.Invoke();
-                    }
-                    return false;
+                    result.IsCancelled = true;
+                    return result;
                 }
                 else if (userChoseNumber >= 0 + startNumber && userChoseNumber - startNumber < optionsTexts.Length)
                 {
                     preEmbed = null;
                     preContent = null;
-                    validDo.Invoke((int)userChoseNumber);
-                    return true;
+                    
+                    return result;
                 }
             }
             catch (TimeoutException ex)
             {
                 preEmbed = null;
                 preContent = $"{Context.User.Mention} {ex.Message}";
-                if (timeoutDo != null)
-                {
-                    timeoutDo.Invoke();
-                }
-                return false;
+                result.IsTimedout = true;
+                return result;
             }
             catch (Exception ex)
             {
                 preEmbed = null;
                 preContent = $"{Context.User.Mention} {ex.Message}";
-                if (unknownDo != null)
-                {
-                    unknownDo.Invoke();
-                }
-                return false;
+                result.UnknownError = ex;
+                return result;
             }
             finally
             {
@@ -115,24 +105,22 @@ namespace MitamaBot.Modules
                     modifiedMsg.Invoke(msgBody);
                 }
             }
-            return false;
+            return result;
         }
 
         /// <summary>
         /// 詢問是非題
-        /// <para>若有回答是非，則回答 True。</para>
+        /// <para></para>
         /// </summary>
         /// <param name="msgBody">訊息本體，若為 null 則會發一個新的</param>
         /// <param name="title">問題標題，也就是 Embed 的標題。</param>
         /// <param name="contentConfirmation">問題內文</param>
         /// <param name="isCancellable">是否可被使用者取消</param>
-        /// <param name="validDo">若為有效答案做...?</param>
-        /// <param name="cancelDo">若使用者取消做...?</param>
-        /// <param name="timeoutDo">若逾時未答做...?</param>
-        /// <param name="unknownDo">若出現例外狀況做...?</param>
         /// <returns></returns>
-        public async Task<bool> AskBooleanQuestion(IUserMessage msgBody, Action<IUserMessage> modifiedMsg, string title, string contentConfirmation, bool isCancellable, Action<bool> validDo, Action cancelDo = null, Action timeoutDo = null, Action unknownDo = null)
+        public async Task<ResponsiveBooleanResult> AskBooleanQuestion(IUserMessage msgBody, Action<IUserMessage> modifiedMsg, string title, string contentConfirmation, bool isCancellable)
         {
+            var result = new ResponsiveBooleanResult();
+
             Embed preEmbed;
             string preContent;
 
@@ -164,45 +152,38 @@ namespace MitamaBot.Modules
                 await Task.Factory.StartNew(async () => await msgBody.AddReactionsAsync(preEmojiButtons.ToArray(), new RequestOptions() { CancelToken = tcs_react_adding.Token }));
 
                 bool? userChoseBoolean = await ReponseSvc.WaitForBooleanAnswerAsync(Context.Channel.Id, isCancellable);
+                result.Value = userChoseBoolean;
+
                 tcs_react_adding.Cancel();
 
                 if (userChoseBoolean == null)
                 {
                     preEmbed = null;
                     preContent = $"{Context.User.Mention} 已取消。";
-                    if (cancelDo != null)
-                    {
-                        cancelDo?.Invoke();
-                    }
-                    return true;
+                    result.IsCancelled = true;
+                    return result;
                 }
                 else
                 {
                     preEmbed = null;
                     preContent = null;
-                    validDo.Invoke((bool)userChoseBoolean);
-                    return true;
+                    return result;
                 }
             }
             catch (TimeoutException ex)
             {
                 preEmbed = null;
                 preContent = $"{Context.User.Mention} {ex.Message}";
-                if (timeoutDo != null)
-                {
-                    timeoutDo.Invoke();
-                }
-                return false;
+
+                result.IsTimedout = true;
+                return result;
             }
             catch (Exception ex)
             {
                 preEmbed = null;
                 preContent = $"{Context.User.Mention} {ex.Message}";
-                if (unknownDo != null)
-                {
-                    unknownDo.Invoke();
-                }
-                return false;
+                result.UnknownError = ex;
+                return result;
             }
             finally
             {
@@ -440,5 +421,37 @@ namespace MitamaBot.Modules
             eB.Description = sB.ToString();
             return eB.Build();
         }
+
+        public abstract class BaseResponsiveResult<T>
+        {
+            public bool IsTimedout { get; set; }
+            public bool IsCancelled { get; set; }
+            public bool IsUnknownErrorOccurred 
+            {
+                get 
+                {
+                    return UnknownError != null;
+                }
+            }
+            public Exception UnknownError { get; set; } = null;
+            public T Value { get; set; }
+
+            /// <summary>
+            /// Check if user reply with value or cancel.
+            /// </summary>
+            public bool IsUserAnswered
+            {
+                get 
+                {
+                    return !IsTimedout && !IsUnknownErrorOccurred && (IsCancelled || Value != null);
+                }
+            }
+        }
+        public class ResponsiveBooleanResult : BaseResponsiveResult<bool?>
+        {}
+        public class ResponsiveNumberResult : BaseResponsiveResult<int?>
+        {}
+        public class ResponsiveTextResult : BaseResponsiveResult<string>
+        {}
     }
 }
