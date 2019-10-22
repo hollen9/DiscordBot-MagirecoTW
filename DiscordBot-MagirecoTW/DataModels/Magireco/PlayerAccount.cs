@@ -17,9 +17,11 @@ namespace MitamaBot.DataModels.Magireco
         public Guid Id { get; set; }
         public string GameId { get; set; }
         public string GameHandle { get; set; }
+        public int GameLevel { get; set; }
         public string Description { get; set; }
         public string ProfileImageUrl { get; set; }
         public string OwnerDiscordId { get; set; }
         public string OwnerServerKey { get; set; }
+        public DateTime LastUpdateTimestamp { get; set; }
     }
 }

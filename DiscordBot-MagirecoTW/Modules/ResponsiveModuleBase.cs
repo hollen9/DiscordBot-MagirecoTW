@@ -259,7 +259,7 @@ namespace MitamaBot.Modules
             preEmbed = new EmbedBuilder()
                 .WithTitle(title)
                 .WithDescription(contentQuestion)
-                .WithFooter(isCancellableByButton ? $"取消指令: {string.Join("、", ReponseSvc.Options.CancelKeywords)} " : null)
+                .WithFooter(isCancellableByKeyword ? $"取消指令: {string.Join("、", ReponseSvc.Options.CancelKeywords)} " : null)
                 .Build();
             preContent = null;
 

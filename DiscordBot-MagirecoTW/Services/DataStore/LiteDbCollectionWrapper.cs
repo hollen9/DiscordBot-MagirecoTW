@@ -16,12 +16,12 @@ namespace MitamaBot.Services.DataStore
             Collection = Database.GetCollection<T>();
         }
 
-        public BsonValue AddItem(T item)
+        public virtual BsonValue AddItem(T item)
         {
             return Collection.Insert(item);
         }
 
-        public bool UpsertItem(T item, BsonValue id)
+        public virtual bool UpsertItem(T item, BsonValue id)
         {
             var existed = Collection.FindById(id);
             if (existed == null)
@@ -39,26 +39,26 @@ namespace MitamaBot.Services.DataStore
                 return false;
             }
         }
-        public bool DeleteItem(BsonValue id)
+        public virtual bool DeleteItem(BsonValue id)
         {
             return Collection.Delete(id);
         }
-        public IEnumerable<T> GetItems()
+        public virtual IEnumerable<T> GetItems()
         {
             return Collection.FindAll();
         }
-        public T GetItem(BsonValue id)
+        public virtual T GetItem(BsonValue id)
         {
             var existed = Collection.FindById(id);
             return existed;
         }
-        public IEnumerable<T> FindItems(System.Linq.Expressions.Expression<Func<T, bool>> predicate)
+        public virtual IEnumerable<T> FindItems(System.Linq.Expressions.Expression<Func<T, bool>> predicate)
         {
             var items = Collection.Find(predicate);
             return items;
         }
 
-        public bool UpdateItem(T item, BsonValue id)
+        public virtual bool UpdateItem(T item, BsonValue id)
         {
             return Collection.Update(id, item);
         }

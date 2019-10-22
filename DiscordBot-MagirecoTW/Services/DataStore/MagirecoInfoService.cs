@@ -36,6 +36,24 @@ namespace MitamaBot.Services.DataStore
         {
             public PlayerAccountCollectionWrapper(LiteDatabase database) : base(database)
             { }
+
+            public override bool UpdateItem(PlayerAccount item, BsonValue id)
+            {
+                item.LastUpdateTimestamp = DateTime.Now;
+                return base.UpdateItem(item, id);
+            }
+
+            public override bool UpsertItem(PlayerAccount item, BsonValue id)
+            {
+                item.LastUpdateTimestamp = DateTime.Now;
+                return base.UpsertItem(item, id);
+            }
+
+            public override BsonValue AddItem(PlayerAccount item)
+            {
+                item.LastUpdateTimestamp = DateTime.Now;
+                return base.AddItem(item);
+            }
         }
         public class ServerCollectionWrapper : LiteDbCollectionWrapper<DataModels.Magireco.Server>
         {

@@ -495,19 +495,26 @@ namespace MitamaBot.Modules
                 chosePlayerAccount = playerAccountsOfChoseServer[(int)userChoseNumber - 1];
             }
 
-            //await Task.Delay(3000).ContinueWith(async x=> 
-            //{
-            //    await msgPanel.DeleteAsync();
-            //});
 
+
+
+
+            bool flagIsFirstRunLoop = true;
             do
             {
+                if (!flagIsFirstRunLoop)
+                {
+                    chosePlayerAccount = MagirecoInfoSvc.PlayerAccount.GetItem(chosePlayerAccount.Id);
+                    await Task.Delay(1500);
+                }
+                flagIsFirstRunLoop = false;
+
                 flagIsDialogEnded = false;
                 var optionsTexts = new string[]
                 {
-                    "變更帳號暱稱",
-                    "變更帳號簡介",
-                    "變更帳號截圖",
+                    "變更等級/暱稱",
+                    "變更簡介",
+                    "變更截圖",
                     "新增Follow",
                     "取消Follow",
                     "刪除帳號"
@@ -515,8 +522,9 @@ namespace MitamaBot.Modules
 
                 var accountFieldBuilders = new List<EmbedFieldBuilder>
                 {
-                    new EmbedFieldBuilder{ Name = "等級", Value = "無", IsInline = true },
-                    //new EmbedFieldBuilder{ Name = "鏡層牌位", Value = "無", IsInline = true },
+                    new EmbedFieldBuilder{ Name = "暱稱", Value = chosePlayerAccount.GameHandle, IsInline = true },
+                    new EmbedFieldBuilder{ Name = "等級", Value = chosePlayerAccount.GameLevel == 0 ? "--" : chosePlayerAccount.GameLevel.ToString(), IsInline = true },
+                    new EmbedFieldBuilder{ Name = "鏡層牌位", Value = "無", IsInline = true },
                     new EmbedFieldBuilder{ Name = "Following", Value = "0", IsInline = true },
                     new EmbedFieldBuilder{ Name = "Follower", Value = "0", IsInline = true },
                     new EmbedFieldBuilder{ Name = "上次更新", Value = "2019/10/31", IsInline = true }
@@ -531,7 +539,86 @@ namespace MitamaBot.Modules
                     continue;
                 }
 
-                if (playerIdMenuAnswer.Value == 3)
+                if (playerIdMenuAnswer.Value == 1)
+                {
+                    int maxAttemptsLvl = 3;
+                    string currentLvlText = chosePlayerAccount.GameLevel <= 0 ? "沒有等級紀錄，請填寫。" : $"目前等級為 `{chosePlayerAccount.GameLevel}`，若不變更請取消跳至下一步。";
+                    var ansLv = await AskTextQuestion(msgPanel, x => msgPanel = x,
+                        $"{chosePlayerAccount.GameId}: 變更【__**等級**__】/暱稱", currentLvlText,
+                        true, true, maxAttemptsLvl,
+                        new List<Func<Discord.WebSocket.SocketMessage, bool>>
+                        {
+                            (msg) =>
+                            {
+                                if (!ushort.TryParse(msg.Content, out ushort lv))
+                                {
+                                    return false;
+                                }
+                                return lv > 0 && lv <= 300;
+                            }
+                        },
+                        new List<Action<Discord.WebSocket.SocketMessage, int>>
+                        {
+                            async (msg, attempts) =>
+                            {
+                                await msgPanel.ModifyAsync(x=>
+                                    x.Content=$"{Context.User.Mention} 請輸入 1~300 之間的整數。`還剩 {maxAttemptsLvl - attempts} 次機會`");
+                            }
+                        });
+                    if (!ansLv.IsUserAnswered)
+                    {
+                        return;
+                    }
+                    if (!ansLv.IsCancelled)
+                    {
+                        var lvl = ushort.Parse(ansLv.Value);
+                        chosePlayerAccount.GameLevel = lvl;
+                        if (!MagirecoInfoSvc.PlayerAccount.UpdateItem(chosePlayerAccount, chosePlayerAccount.Id))
+                        {
+                            await msgPanel.ModifyAsync(x => x.Content = $"{Context.User.Mention} 等級變更失敗。");
+                            continue;
+                        }
+                        await msgPanel.ModifyAsync(x => x.Content = $"{Context.User.Mention} 等級已變更為 **{lvl}**。");
+                    }
+                    // 變更暱稱
+                    int maxAttemptsNickname = 3;
+                    string currentNicknameText = chosePlayerAccount.GameLevel <= 0 ? "沒有暱稱資料，請填寫。" : $"目前暱稱為 `{chosePlayerAccount.GameHandle}`，若不變更請點選❎跳至下一步。";
+                    var ansNickname = await AskTextQuestion(msgPanel, x => msgPanel = x,
+                        $"{chosePlayerAccount.GameId}: 變更等級/【__**暱稱**__】", $"{currentNicknameText} *(字數≦8)*",
+                        true, false, maxAttemptsNickname,
+                        new List<Func<Discord.WebSocket.SocketMessage, bool>>
+                        {
+                            (msg) =>
+                            {
+                                return msg.Content.Length <= 8;
+                            }
+                        },
+                        new List<Action<Discord.WebSocket.SocketMessage, int>>
+                        {
+                            async (msg, attempts) =>
+                            {
+                                await msgPanel.ModifyAsync(x=>
+                                    x.Content=$"{Context.User.Mention} 不得超過8個字，請重新輸入。`還剩 {maxAttemptsNickname - attempts} 次機會`");
+                            }
+                        });
+                    if (!ansNickname.IsUserAnswered)
+                    {
+                        return;
+                    }
+                    if (!ansNickname.IsCancelled)
+                    {
+                        chosePlayerAccount.GameHandle = ansNickname.Value;
+                        if (!MagirecoInfoSvc.PlayerAccount.UpdateItem(chosePlayerAccount, chosePlayerAccount.Id))
+                        {
+                            await msgPanel.ModifyAsync(x => x.Content = $"{Context.User.Mention} 暱稱變更失敗。");
+                            continue;
+                        }
+                        await msgPanel.ModifyAsync(x => x.Content = $"{Context.User.Mention} 暱稱已變更為 {ansNickname.Value}。");
+                    }
+                    continue;
+                }
+                // 設置個人檔案圖片網址
+                else if (playerIdMenuAnswer.Value == 3)
                 {
                     int maxAttempts = 3;
                     var ansImgUrl = await AskTextQuestion(msgPanel, x => msgPanel = x,
@@ -567,20 +654,18 @@ namespace MitamaBot.Modules
                     chosePlayerAccount.ProfileImageUrl = ansImgUrl.Value;
                     if (!MagirecoInfoSvc.PlayerAccount.UpdateItem(chosePlayerAccount, chosePlayerAccount.Id))
                     {
-                        await msgPanel.ModifyAsync(x =>
-                                    x.Content = $"{Context.User.Mention} 個人檔案截圖更新失敗。");
+                        await msgPanel.ModifyAsync(x => x.Content = $"{Context.User.Mention} 個人檔案截圖更新失敗。");
                         continue;
                     }
-                    await msgPanel.ModifyAsync(x =>
-                                    x.Content = $"{Context.User.Mention} 已更新個人檔案截圖。");
+                    await msgPanel.ModifyAsync(x => x.Content = $"{Context.User.Mention} 已更新個人檔案截圖。");
                     continue;
                 }
 
-                await msgPanel.ModifyAsync(x =>
-                {
-                    x.Content = $"選擇 {playerIdMenuAnswer.Value}";
-                    x.Embed = null;
-                });
+                //await msgPanel.ModifyAsync(x =>
+                //{
+                //    x.Content = $"選擇 {playerIdMenuAnswer.Value}";
+                //    x.Embed = null;
+                //});
             }
             while (!flagIsDialogEnded);
 
