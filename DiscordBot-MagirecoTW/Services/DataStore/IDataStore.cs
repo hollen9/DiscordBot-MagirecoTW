@@ -15,6 +15,7 @@ namespace MitamaBot.Services.DataStore
     {
         T2 AddItem(T1 item);
         bool UpsertItem(T1 item, T2 id);
+        bool UpdateItem(T1 item, T2 id);
         bool DeleteItem(T2 id);
         IEnumerable<T1> GetItems();
         T1 GetItem(T2 id);

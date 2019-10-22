@@ -214,6 +214,10 @@ namespace MitamaBot.Modules
             int? userChoseNumber = null;
             bool isCancellable;
 
+            PlayerAccount chosePlayerAccount = null;
+            Server choseServer = null;
+            bool flagIsDialogEnded = false;
+            
             //Start
             var serversEm = MagirecoInfoSvc.Server.GetItems();
 
@@ -256,12 +260,11 @@ namespace MitamaBot.Modules
                 "遊戲帳號伺服器", servers.Select(x => new string($"{x.ChineseName} `{x.ServerKey}`")
                 ).ToList(), 1,true
                 );
-            msgPanel = await ReplyAsync(preContentBuilder.ToString(), false, embedPromptServer);
+            msgPanel = await ReplyAsync(preContentBuilder.ToString(), false, embedPromptServer.Build());
 
             isCancellable = true;
             preEmojiButtons = ReponseSvc.GetNumberOptionsEmojis(servers.Count, 1, isCancellable);
 
-            Server choseServer = null;
             string preContent = null;
 
             //詢問要看哪個伺服器的帳號呢
@@ -327,7 +330,7 @@ namespace MitamaBot.Modules
             preOptionsTexts.Insert(0, "【新增帳號】");
 
             preEmbed = BuildLinesOfOptions(
-                $"__{choseServer.ChineseName}__ 帳號編輯", preOptionsTexts, 0, true);
+                $"__{choseServer.ChineseName}__ 帳號編輯", preOptionsTexts, 0, true).Build();
             preContent = null;
 
             await msgPanel.ModifyAsync(x => {
@@ -382,7 +385,11 @@ namespace MitamaBot.Modules
                 }
             }
 
-            if (userChoseNumber == 0)
+            if (userChoseNumber == null)
+            {
+                return;
+            }
+            else if (userChoseNumber == 0)
             {
                 bool isOk = false,                     
                      isAbort = false;
@@ -441,7 +448,12 @@ namespace MitamaBot.Modules
                         return;
                     }
 
-                    var newAccountItem = new MitamaBot.DataModels.Magireco.PlayerAccount();
+                    var newAccountItem = new PlayerAccount 
+                    {
+                        OwnerDiscordId = Context.User.Id.ToString(),
+                        OwnerServerKey = choseServer.ServerKey,
+                        GameId = playerIdAnswer.Value
+                    };
                     newAccountItem.Id = MagirecoInfoSvc.PlayerAccount.AddItem(newAccountItem);
 
                     if (newAccountItem.Id == null)
@@ -455,29 +467,124 @@ namespace MitamaBot.Modules
                     }
                     else
                     {
+                        chosePlayerAccount = newAccountItem;
                         await msgPanel.ModifyAsync(x =>
                         {
                             x.Embed = null;
                             x.Content = $"{Context.User.Mention} ID 新增成功。";
                         });
-                        return;
                     }
+                    break;
                 }
             }
             else
             {
-                preContent = $"選擇 {userChoseNumber}";
-                preEmbed = null;
+                chosePlayerAccount = playerAccountsOfChoseServer[(int)userChoseNumber - 1];
             }
+
+            //await Task.Delay(3000).ContinueWith(async x=> 
+            //{
+            //    await msgPanel.DeleteAsync();
+            //});
+
+            do
+            {
+                flagIsDialogEnded = false;
+                var optionsTexts = new string[]
+                {
+                    "變更帳號暱稱",
+                    "變更帳號簡介",
+                    "變更帳號截圖",
+                    "新增Follow",
+                    "取消Follow",
+                    "刪除帳號"
+                };
+
+                var accountFieldBuilders = new List<EmbedFieldBuilder>
+                {
+                    new EmbedFieldBuilder{ Name = "等級", Value = "無", IsInline = true },
+                    //new EmbedFieldBuilder{ Name = "鏡層牌位", Value = "無", IsInline = true },
+                    new EmbedFieldBuilder{ Name = "Following", Value = "0", IsInline = true },
+                    new EmbedFieldBuilder{ Name = "Follower", Value = "0", IsInline = true },
+                    new EmbedFieldBuilder{ Name = "上次更新", Value = "2019/10/31", IsInline = true }
+                };
+
+                var playerIdMenuAnswer = await AskNumberQuestion(msgPanel, x => msgPanel = x,
+                    $"【{chosePlayerAccount.GameId}】【{choseServer.ChineseName}】",
+                    optionsTexts, 1, true, null, null, accountFieldBuilders, chosePlayerAccount.ProfileImageUrl);
+                if (!playerIdMenuAnswer.IsUserAnswered || playerIdMenuAnswer.IsCancelled)
+                {
+                    flagIsDialogEnded = true;
+                    continue;
+                }
+
+                if (playerIdMenuAnswer.Value == 3)
+                {
+                    int maxAttempts = 3;
+                    var ansImgUrl = await AskTextQuestion(msgPanel, x => msgPanel = x,
+                        $"{chosePlayerAccount.GameId}: 設置個人檔案截圖", "請輸入個人檔案截圖的網址:",
+                        true, true, maxAttempts,
+                        new List<Func<Discord.WebSocket.SocketMessage, bool>> 
+                        {
+                            (msg) => 
+                            {
+                                Uri uriResult;
+                                bool result = Uri.TryCreate(msg.Content, UriKind.Absolute, out uriResult)
+                                && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps);
+                                return result;
+                            }
+                        },
+                        new List<Action<Discord.WebSocket.SocketMessage, int>> 
+                        {
+                            async (msg, attempts) =>
+                            {
+                                await msgPanel.ModifyAsync(x=>
+                                    x.Content=$"{Context.User.Mention} 請輸入有效的圖片網址。`還剩 {maxAttempts - attempts} 次機會`");
+                            }
+                        });
+                    if (!ansImgUrl.IsUserAnswered)
+                    {
+                        return;
+                    }
+                    if (ansImgUrl.IsCancelled)
+                    {
+                        continue;
+                    }
+
+                    chosePlayerAccount.ProfileImageUrl = ansImgUrl.Value;
+                    if (!MagirecoInfoSvc.PlayerAccount.UpdateItem(chosePlayerAccount, chosePlayerAccount.Id))
+                    {
+                        await msgPanel.ModifyAsync(x =>
+                                    x.Content = $"{Context.User.Mention} 個人檔案截圖更新失敗。");
+                        continue;
+                    }
+                    await msgPanel.ModifyAsync(x =>
+                                    x.Content = $"{Context.User.Mention} 已更新個人檔案截圖。");
+                    continue;
+                }
+
+                await msgPanel.ModifyAsync(x =>
+                {
+                    x.Content = $"選擇 {playerIdMenuAnswer.Value}";
+                    x.Embed = null;
+                });
+            }
+            while (!flagIsDialogEnded);
+
+            //else
+            //{
+            //    preContent = $"選擇 {userChoseNumber}";
+            //    preEmbed = null;
+            //}
 
             //await msgPanel.ModifyAsync(x => {
             //    x.Content = preContent;
             //    x.Embed = preEmbed;
             //});
 
-            
 
-            
+
+
 
             //string playerId;
 

@@ -25,14 +25,17 @@ namespace MitamaBot.Modules
         /// <param name="startNumber">選項起始數字</param>
         /// <param name="isCancellable">是否可被使用者取消</param>
         /// <returns></returns>
-        public async Task<ResponsiveNumberResult> AskNumberQuestion(IUserMessage msgBody, Action<IUserMessage> modifiedMsg, string title, string[] optionsTexts, int startNumber, bool isCancellable)
+        public async Task<ResponsiveNumberResult> AskNumberQuestion(IUserMessage msgBody, Action<IUserMessage> modifiedMsg, string title, string[] optionsTexts, int startNumber, bool isCancellable, string prependDescription = null, string appendDescription = null, IEnumerable<EmbedFieldBuilder> fields = null, string imageUrl = null)
         {
             var result = new ResponsiveNumberResult();
 
             Embed preEmbed;
             string preContent;
 
-            preEmbed = BuildLinesOfOptions(title, optionsTexts.ToList(), startNumber, true);
+            preEmbed = BuildLinesOfOptions(title, optionsTexts.ToList(), startNumber, true, prependDescription, appendDescription)
+                .WithFields(fields)
+                .WithImageUrl(imageUrl)
+                .Build();
             preContent = null;
 
             if (msgBody == null)
@@ -202,6 +205,19 @@ namespace MitamaBot.Modules
             }
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="msgBody"></param>
+        /// <param name="msgModified">Return a msgBody (if msgBody is null, then this can be used.)</param>
+        /// <param name="title"></param>
+        /// <param name="contentQuestion"></param>
+        /// <param name="isCancellableByButton"></param>
+        /// <param name="isCancellableByKeyword"></param>
+        /// <param name="maxRetries">Max attempts</param>
+        /// <param name="conditions">SocketMessage: userMessage; return condition checking result</param>
+        /// <param name="conditionFailDo">SocketMessage: userMessage, int: Attempts</param>
+        /// <returns></returns>
         public async Task<ResponsiveTextResult> AskTextQuestion(
             IUserMessage msgBody,
             Action<IUserMessage> msgModified,
@@ -385,11 +401,17 @@ namespace MitamaBot.Modules
             }
         }
 
-        public Embed BuildLinesOfOptions(string title, List<string> options, int start = 1, bool isShowCancelCommandHint = true)
+        public EmbedBuilder BuildLinesOfOptions(string title, List<string> options, int start = 1, bool isShowCancelCommandHint = true, string prependDescription = null, string appendDescription = null)
         {
             var eB = new Discord.EmbedBuilder();
             eB.Title = title;
             var sB = new StringBuilder();
+
+            if (prependDescription != null)
+            {
+                sB.Append(prependDescription);
+            }
+
             for (int i = start; i <= options.Count; i++)
             {
                 if (start == 0) //zero-based options
@@ -405,12 +427,18 @@ namespace MitamaBot.Modules
                     sB.AppendLine($"{i}. {options[i - 1]}");
                 }
             }
+
+            if (appendDescription != null)
+            {
+                sB.Append(appendDescription);
+            }
+
             if (isShowCancelCommandHint)
             {
                 eB.WithFooter($"取消指令: {string.Join("、", ReponseSvc.Options.CancelKeywords)} ");
             }
             eB.Description = sB.ToString();
-            return eB.Build();
+            return eB;
         }
 
         public abstract class BaseResponsiveResult<T>

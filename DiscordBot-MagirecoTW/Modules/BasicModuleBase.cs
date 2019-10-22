@@ -12,9 +12,9 @@ namespace MitamaBot.Modules
     public class BasicModuleBase : ModuleBase<SocketCommandContext>
     {
         public Task<IUserMessage> ReplyEmbedAsync(Embed embed)
-            => ReplyAsync("", false, embed, null);
+            => ReplyAsync(string.Empty, false, embed, null);
         public Task<IUserMessage> ReplyEmbedAsync(EmbedBuilder builder)
-            => ReplyAsync("", false, builder.Build(), null);
+            => ReplyAsync(string.Empty, false, builder.Build(), null);
 
         public Task ReplyReactionAsync(IEmote emote)
             => Context.Message.AddReactionAsync(emote);
@@ -24,5 +24,15 @@ namespace MitamaBot.Modules
 
         public Task<IUserMessage> ReplyMentionAsync(string content)
             => ReplyAsync($"{Context.User.Mention} {content}", false, null, null);
+
+        //public Task ModifyIfPossible(this IUserMessage msg, Action<MessageProperties> msgProperties)
+        //{
+        //    var msgP = new MessageProperties();
+        //    msgProperties(msgP);
+
+        //    //Context.Guild.CurrentUser.GuildPermissions.
+
+        //    msg.ModifyAsync(x => x = msgP);
+        //}
     }
 }

@@ -18,9 +18,7 @@ namespace MitamaBot.DataModels.Magireco
         public string GameId { get; set; }
         public string GameHandle { get; set; }
         public string Description { get; set; }
-        public List<Guid> Following { get; set; }
-        public List<Guid> Follower { get; set; }
-
+        public string ProfileImageUrl { get; set; }
         public string OwnerDiscordId { get; set; }
         public string OwnerServerKey { get; set; }
     }

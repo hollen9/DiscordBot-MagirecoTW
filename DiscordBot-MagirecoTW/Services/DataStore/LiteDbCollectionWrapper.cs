@@ -57,5 +57,10 @@ namespace MitamaBot.Services.DataStore
             var items = Collection.Find(predicate);
             return items;
         }
+
+        public bool UpdateItem(T item, BsonValue id)
+        {
+            return Collection.Update(id, item);
+        }
     }
 }
