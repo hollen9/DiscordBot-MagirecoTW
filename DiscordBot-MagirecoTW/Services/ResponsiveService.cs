@@ -167,7 +167,8 @@ namespace MitamaBot.Services
             int startNumber = 1,
             bool isCancellable = false,
             TimeSpan? expireAfter = null,
-            TaskCompletionSource<SocketMessageOrReaction> tcs = null)
+            TaskCompletionSource<SocketMessageOrReaction> tcs = null,
+            Action<SocketMessage> returnedUserMessageIfRecognised = null)
         {
             if (tcs == null)
             {
@@ -207,6 +208,11 @@ namespace MitamaBot.Services
                     return Task.CompletedTask;
                 }
                 string content = x.Content.Trim();
+
+                if (returnedUserMessageIfRecognised != null)
+                {
+                    returnedUserMessageIfRecognised.Invoke(x);
+                }
 
                 if (isCancellable && Options.CancelKeywords != null && Options.CancelKeywords.Contains(content))
                 {
@@ -271,7 +277,8 @@ namespace MitamaBot.Services
             ulong channelId,
             bool isCancellable = false,
             TimeSpan? expireAfter = null,
-            TaskCompletionSource<SocketMessageOrReaction> tcs = null)
+            TaskCompletionSource<SocketMessageOrReaction> tcs = null,
+            Action<SocketMessage> returnedUserMessageIfRecognised = null)
         {
             if (tcs == null)
             {
@@ -287,6 +294,11 @@ namespace MitamaBot.Services
                     return Task.CompletedTask;
                 }
                 string content = x.Content.Trim().ToLower();
+
+                if (returnedUserMessageIfRecognised != null)
+                {
+                    returnedUserMessageIfRecognised.Invoke(x);
+                }
 
                 if (isCancellable && Options.CancelKeywords != null && Options.CancelKeywords.Contains(content))
                 {

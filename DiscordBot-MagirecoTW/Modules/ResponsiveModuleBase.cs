@@ -15,6 +15,9 @@ namespace MitamaBot.Modules
 {
     public class ResponsiveModuleBase : BasicModuleBase
     {
+        
+        public bool IsDeleteUserAnswer = true;
+
         public ResponsiveService ReponseSvc { get; set; }
         /// <summary>
         /// 詢問選擇題
@@ -58,9 +61,18 @@ namespace MitamaBot.Modules
                 CancellationTokenSource tcs_react_adding = new CancellationTokenSource();
                 await Task.Factory.StartNew(async () => await msgBody.AddReactionsAsync(preEmojiButtons.ToArray(), new RequestOptions() { CancelToken = tcs_react_adding.Token }));
 
-                int? userChoseNumber = await ReponseSvc.WaitForNumberAnswerAsync(Context.Channel.Id, preEmojiButtons, startNumber, isCancellable);
+                int? userChoseNumber = await ReponseSvc.WaitForNumberAnswerAsync(
+                    Context.Channel.Id, preEmojiButtons, startNumber, isCancellable, null, null,
+                    async userMsg =>
+                    {
+                        if (IsDeleteUserAnswer)
+                        {
+                            try { await Context.Channel.DeleteMessageAsync(userMsg); }
+                            catch { }
+                        }
+                    });
                 result.Value = userChoseNumber;
-
+                
                 tcs_react_adding.Cancel(); // Stop adding emoji buttons 
 
                 if (userChoseNumber == null)
@@ -154,8 +166,18 @@ namespace MitamaBot.Modules
                 CancellationTokenSource tcs_react_adding = new CancellationTokenSource();
                 await Task.Factory.StartNew(async () => await msgBody.AddReactionsAsync(preEmojiButtons.ToArray(), new RequestOptions() { CancelToken = tcs_react_adding.Token }));
 
-                bool? userChoseBoolean = await ReponseSvc.WaitForBooleanAnswerAsync(Context.Channel.Id, isCancellable);
+                bool? userChoseBoolean = await ReponseSvc.WaitForBooleanAnswerAsync(Context.Channel.Id, isCancellable, null, null,
+                    async userMsg => 
+                    {
+                        if (IsDeleteUserAnswer)
+                        {
+                            try { await Context.Channel.DeleteMessageAsync(userMsg); }
+                            catch { }
+                        }
+                    }
+                    );
                 result.Value = userChoseBoolean;
+                
 
                 tcs_react_adding.Cancel();
 
@@ -267,6 +289,13 @@ namespace MitamaBot.Modules
                     attempts++;
 
                     userAnsMsg = await ReponseSvc.WaitForMessageCancellableAsync(Context.Channel.Id, isCancellableByKeyword);
+
+                    if (IsDeleteUserAnswer && userAnsMsg != null && userAnsMsg.Message != null)
+                    {
+                        try { await Context.Channel.DeleteMessageAsync(userAnsMsg.Message); }
+                        catch { }
+                    }
+
                     result.IsCancelled = userAnsMsg.IsCancelled;
                     result.Value = userAnsMsg?.Message?.Content;
 

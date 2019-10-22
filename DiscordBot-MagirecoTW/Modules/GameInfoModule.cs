@@ -116,6 +116,19 @@ namespace MitamaBot.Modules
             }
         }
 
+        [Command("test-bool2", RunMode = RunMode.Async)]
+        public async Task TestBoolean2Async()
+        {
+            bool isCancellable = true;
+            IUserMessage msgPanel = null;
+            var answer = await AskBooleanQuestion(null, x => msgPanel = x, "Yes or No?", "Please choose.", true);
+            if (!answer.IsUserAnswered || answer.IsCancelled)
+            {
+                return;
+            }
+            await msgPanel.ModifyAsync(x=>x.Content = $"You chose {((bool)answer.Value ? "Yes" : "No")}");
+        }
+
         [Command("server")]
         public async Task GetServerInfoAsync()
         {            
