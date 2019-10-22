@@ -201,37 +201,43 @@ namespace MitamaBot.Services
             
             int? userChoose = null;
 
-            _discord.MessageReceived += (x) =>
-            {
-                if (x.Channel.Id != channelId || x.Author.IsBot || x.Author.IsWebhook)
-                {
-                    return Task.CompletedTask;
-                }
-                string content = x.Content.Trim();
+            Func<SocketMessage, Task> msgPredicate = null;
+            Func<Cacheable<IUserMessage, ulong>, ISocketMessageChannel, SocketReaction, Task> predicateReact = null;
 
-                if (returnedUserMessageIfRecognised != null)
+            msgPredicate = (x) =>
                 {
-                    returnedUserMessageIfRecognised.Invoke(x);
-                }
+                    if (x.Channel.Id != channelId || x.Author.IsBot || x.Author.IsWebhook)
+                    {
+                        return Task.CompletedTask;
+                    }
+                    string content = x.Content.Trim();
 
-                if (isCancellable && Options.CancelKeywords != null && Options.CancelKeywords.Contains(content))
-                {
-                    userChoose = null;
+                    if (returnedUserMessageIfRecognised != null)
+                    {
+                        returnedUserMessageIfRecognised.Invoke(x);
+                    }
+
+                    if (isCancellable && Options.CancelKeywords != null && Options.CancelKeywords.Contains(content))
+                    {
+                        userChoose = null;
+                        _discord.MessageReceived -= msgPredicate;
+                        _discord.ReactionAdded -= predicateReact;
+                        tcs.TrySetResult(new SocketMessageOrReaction() { Message = x });
+                        return Task.CompletedTask;
+                    }
+
+                    if (!int.TryParse(content, out int outValue) || outValue < startNumber || outValue > endNumber)
+                    {
+                        return Task.CompletedTask;
+                    }
+                    userChoose = (int?)outValue;
+                    _discord.MessageReceived -= msgPredicate;
+                    _discord.ReactionAdded -= predicateReact;
                     tcs.TrySetResult(new SocketMessageOrReaction() { Message = x });
                     return Task.CompletedTask;
-                }
 
-                if (!int.TryParse(content, out int outValue) || outValue < startNumber || outValue > endNumber)
-                {
-                    return Task.CompletedTask;
-                }
-                userChoose = (int?) outValue;
-                tcs.TrySetResult(new SocketMessageOrReaction() { Message = x });
-                return Task.CompletedTask;
-
-            };
-
-            _discord.ReactionAdded += (cache, ch, r) =>
+                };
+            predicateReact = (cache, ch, r) =>
             {
                 if (ch.Id != channelId || r.User.Value.IsBot || r.User.Value.IsWebhook)
                 {
@@ -250,12 +256,19 @@ namespace MitamaBot.Services
                         {
                             userChoose = i + startNumber;
                         }
+
+                        _discord.MessageReceived -= msgPredicate;
+                        _discord.ReactionAdded -= predicateReact;
                         tcs.TrySetResult(new SocketMessageOrReaction() { Reaction = r });
+                        
                         break;
                     }
                 }
                 return Task.CompletedTask;
             };
+
+            _discord.MessageReceived += msgPredicate;
+            _discord.ReactionAdded += predicateReact;
 
             var result = await WaitAsync(tcs, expireAfter);
             if (result == null)
@@ -287,52 +300,58 @@ namespace MitamaBot.Services
 
             bool? userChoose = null;
 
-            _discord.MessageReceived += (x) =>
-            {
-                if (x.Channel.Id != channelId || x.Author.IsBot || x.Author.IsWebhook)
-                {
-                    return Task.CompletedTask;
-                }
-                string content = x.Content.Trim().ToLower();
+            Func<SocketMessage, Task> msgPredicate = null;
+            Func<Cacheable<IUserMessage, ulong>, ISocketMessageChannel, SocketReaction, Task> reactPredicate = null;
 
-                if (returnedUserMessageIfRecognised != null)
+            msgPredicate = (x) =>
                 {
-                    returnedUserMessageIfRecognised.Invoke(x);
-                }
+                    if (x.Channel.Id != channelId || x.Author.IsBot || x.Author.IsWebhook)
+                    {
+                        return Task.CompletedTask;
+                    }
+                    string content = x.Content.Trim().ToLower();
 
-                if (isCancellable && Options.CancelKeywords != null && Options.CancelKeywords.Contains(content))
-                {
-                    userChoose = null;
-                    tcs.TrySetResult(new SocketMessageOrReaction() { Message = x });
-                    return Task.CompletedTask;
-                }
-                bool hasYesStr = Options.YesKeywords.Contains(content),
-                     hasNoStr = Options.NoKeywords.Contains(content);
+                    if (returnedUserMessageIfRecognised != null)
+                    {
+                        returnedUserMessageIfRecognised.Invoke(x);
+                    }
 
-                if (!hasYesStr && !hasNoStr)
-                {
-                    return Task.CompletedTask;
-                }
-                if (hasYesStr)
-                {
-                    userChoose = true;
-                }
-                else if (hasNoStr)
-                {
-                    userChoose = false;
-                }
-                else
-                {
-                    return Task.CompletedTask;
+                    if (isCancellable && Options.CancelKeywords != null && Options.CancelKeywords.Contains(content))
+                    {
+                        userChoose = null;
+                        _discord.MessageReceived -= msgPredicate;
+                        _discord.ReactionAdded -= reactPredicate;
+                        tcs.TrySetResult(new SocketMessageOrReaction() { Message = x });
+                        return Task.CompletedTask;
+                    }
+                    bool hasYesStr = Options.YesKeywords.Contains(content),
+                         hasNoStr = Options.NoKeywords.Contains(content);
+
+                    if (!hasYesStr && !hasNoStr)
+                    {
+                        return Task.CompletedTask;
+                    }
+                    if (hasYesStr)
+                    {
+                        userChoose = true;
+                    }
+                    else if (hasNoStr)
+                    {
+                        userChoose = false;
+                    }
+                    else
+                    {
+                        return Task.CompletedTask;
                     // Ignore and abandon this value
                 }
 
-                tcs.TrySetResult(new SocketMessageOrReaction() { Message = x });
-                return Task.CompletedTask;
+                    _discord.MessageReceived -= msgPredicate;
+                    _discord.ReactionAdded -= reactPredicate;
+                    tcs.TrySetResult(new SocketMessageOrReaction() { Message = x });
+                    return Task.CompletedTask;
 
-            };
-
-            _discord.ReactionAdded += (cache, ch, r) =>
+                };
+            reactPredicate = (cache, ch, r) =>
             {
                 if (ch.Id != channelId || r.User.Value.IsBot || r.User.Value.IsWebhook)
                 {
@@ -356,9 +375,14 @@ namespace MitamaBot.Services
                     //Ignore as not setting task result;-
                     return Task.CompletedTask;
                 }
+                _discord.MessageReceived -= msgPredicate;
+                _discord.ReactionAdded -= reactPredicate;
                 tcs.TrySetResult(new SocketMessageOrReaction() { Reaction = r });
                 return Task.CompletedTask;
             };
+
+            _discord.MessageReceived += msgPredicate;
+            _discord.ReactionAdded += reactPredicate;
 
             var result = await WaitAsync(tcs, expireAfter);
             if (result == null)
