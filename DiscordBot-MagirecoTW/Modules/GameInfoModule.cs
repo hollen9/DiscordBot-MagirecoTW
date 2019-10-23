@@ -495,20 +495,18 @@ namespace MitamaBot.Modules
                 chosePlayerAccount = playerAccountsOfChoseServer[(int)userChoseNumber - 1];
             }
 
-
-
-
-
             bool flagIsFirstRunLoop = true;
             do
             {
+                var followers = MagirecoInfoSvc.FollowingInfo.FindMyFollowerAccount(chosePlayerAccount.Id).ToList();
+                var followings = MagirecoInfoSvc.FollowingInfo.FindMyFollowingAccount(chosePlayerAccount.Id).ToList();
+
                 if (!flagIsFirstRunLoop)
                 {
                     chosePlayerAccount = MagirecoInfoSvc.PlayerAccount.GetItem(chosePlayerAccount.Id);
                     await Task.Delay(1500);
                 }
                 flagIsFirstRunLoop = false;
-
                 flagIsDialogEnded = false;
                 var optionsTexts = new string[]
                 {
@@ -522,29 +520,41 @@ namespace MitamaBot.Modules
 
                 var accountFieldBuilders = new List<EmbedFieldBuilder>
                 {
-                    new EmbedFieldBuilder{ Name = "暱稱", Value = chosePlayerAccount.GameHandle, IsInline = true },
+                    new EmbedFieldBuilder{ Name = "暱稱", Value = chosePlayerAccount.GameHandle ?? "--", IsInline = true },
                     new EmbedFieldBuilder{ Name = "等級", Value = chosePlayerAccount.GameLevel == 0 ? "--" : chosePlayerAccount.GameLevel.ToString(), IsInline = true },
                     new EmbedFieldBuilder{ Name = "鏡層牌位", Value = "無", IsInline = true },
-                    new EmbedFieldBuilder{ Name = "Following", Value = "0", IsInline = true },
-                    new EmbedFieldBuilder{ Name = "Follower", Value = "0", IsInline = true },
-                    new EmbedFieldBuilder{ Name = "上次更新", Value = "2019/10/31", IsInline = true }
+                    new EmbedFieldBuilder{ Name = "Following", Value = followings.Count, IsInline = true },
+                    new EmbedFieldBuilder{ Name = "Follower", Value = followers.Count, IsInline = true },
+                    //new EmbedFieldBuilder{ Name = "上次更新", Value = "2019/10/31", IsInline = true }
                 };
 
+                var accountEB = new EmbedBuilder
+                {
+                    ImageUrl = chosePlayerAccount.ProfileImageUrl,
+                    Fields = accountFieldBuilders
+                };
+                if (chosePlayerAccount.LastUpdateTimestamp != default)
+                {
+                    accountEB.Timestamp = chosePlayerAccount.LastUpdateTimestamp;
+                }
                 var playerIdMenuAnswer = await AskNumberQuestion(msgPanel, x => msgPanel = x,
                     $"【{chosePlayerAccount.GameId}】【{choseServer.ChineseName}】",
-                    optionsTexts, 1, true, null, null, accountFieldBuilders, chosePlayerAccount.ProfileImageUrl);
+                    optionsTexts, 1, true, null, null, accountEB);
                 if (!playerIdMenuAnswer.IsUserAnswered || playerIdMenuAnswer.IsCancelled)
                 {
                     flagIsDialogEnded = true;
                     continue;
                 }
 
+                string preTitle = $"{chosePlayerAccount.GameId}: ";
+
+                // 變更等級/暱稱
                 if (playerIdMenuAnswer.Value == 1)
                 {
                     int maxAttemptsLvl = 3;
                     string currentLvlText = chosePlayerAccount.GameLevel <= 0 ? "沒有等級紀錄，請填寫。" : $"目前等級為 `{chosePlayerAccount.GameLevel}`，若不變更請取消跳至下一步。";
                     var ansLv = await AskTextQuestion(msgPanel, x => msgPanel = x,
-                        $"{chosePlayerAccount.GameId}: 變更【__**等級**__】/暱稱", currentLvlText,
+                        $"{preTitle}變更**等級**與暱稱", currentLvlText,
                         true, true, maxAttemptsLvl,
                         new List<Func<Discord.WebSocket.SocketMessage, bool>>
                         {
@@ -584,7 +594,7 @@ namespace MitamaBot.Modules
                     int maxAttemptsNickname = 3;
                     string currentNicknameText = chosePlayerAccount.GameLevel <= 0 ? "沒有暱稱資料，請填寫。" : $"目前暱稱為 `{chosePlayerAccount.GameHandle}`，若不變更請點選❎跳至下一步。";
                     var ansNickname = await AskTextQuestion(msgPanel, x => msgPanel = x,
-                        $"{chosePlayerAccount.GameId}: 變更等級/【__**暱稱**__】", $"{currentNicknameText} *(字數≦8)*",
+                        $"{chosePlayerAccount.GameId}: 變更等級與**暱稱**", $"{currentNicknameText} *(字數≦8)*",
                         true, false, maxAttemptsNickname,
                         new List<Func<Discord.WebSocket.SocketMessage, bool>>
                         {
@@ -617,16 +627,45 @@ namespace MitamaBot.Modules
                     }
                     continue;
                 }
+                // 變更簡介
+                else if (playerIdMenuAnswer.Value == 2) 
+                {
+                    int maxAttempts = 3;
+                    var ansComment = await AskTextQuestion(msgPanel, x => msgPanel = x,
+                        $"{preTitle}變更簡介", "請輸入帳號簡介 (50字以內)", true, false, maxAttempts,
+                        new List<Func<Discord.WebSocket.SocketMessage, bool>> 
+                        {
+                            msg => 
+                            {
+                                return msg.Content.Length <= 50;
+                            }
+                        },
+                        new List<Action<Discord.WebSocket.SocketMessage, int>> 
+                        {
+                            async (msg, attempts) => 
+                            {
+                                await msgPanel.ModifyAsync(x=> x.Content = $"{Context.User.Mention} 簡介不得超過50字。");
+                            }
+                        });
+                    if (ansComment.IsCancelled)
+                    {
+                        continue;
+                    }
+                    if (ansComment.IsUserAnswered)
+                    {
+
+                    }
+                }
                 // 設置個人檔案圖片網址
                 else if (playerIdMenuAnswer.Value == 3)
                 {
                     int maxAttempts = 3;
                     var ansImgUrl = await AskTextQuestion(msgPanel, x => msgPanel = x,
-                        $"{chosePlayerAccount.GameId}: 設置個人檔案截圖", "請輸入個人檔案截圖的網址:",
+                        $"{preTitle}設置個人檔案截圖", "請輸入個人檔案截圖的網址:",
                         true, true, maxAttempts,
-                        new List<Func<Discord.WebSocket.SocketMessage, bool>> 
+                        new List<Func<Discord.WebSocket.SocketMessage, bool>>
                         {
-                            (msg) => 
+                            (msg) =>
                             {
                                 Uri uriResult;
                                 bool result = Uri.TryCreate(msg.Content, UriKind.Absolute, out uriResult)
@@ -634,7 +673,7 @@ namespace MitamaBot.Modules
                                 return result;
                             }
                         },
-                        new List<Action<Discord.WebSocket.SocketMessage, int>> 
+                        new List<Action<Discord.WebSocket.SocketMessage, int>>
                         {
                             async (msg, attempts) =>
                             {
@@ -660,6 +699,8 @@ namespace MitamaBot.Modules
                     await msgPanel.ModifyAsync(x => x.Content = $"{Context.User.Mention} 已更新個人檔案截圖。");
                     continue;
                 }
+                // 
+
 
                 //await msgPanel.ModifyAsync(x =>
                 //{

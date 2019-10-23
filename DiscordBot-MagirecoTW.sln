@@ -5,9 +5,11 @@ VisualStudioVersion = 16.0.29215.179
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MitamaBot", "DiscordBot-MagirecoTW\MitamaBot.csproj", "{623077EB-DA39-4E26-8D8C-7B8B35F5280D}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetaSoundIndex", "NetaSoundIndex\NetaSoundIndex.csproj", "{BCA4DC6D-98A6-4F47-AE70-993D5D2B8D49}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetaSoundIndex", "NetaSoundIndex\NetaSoundIndex.csproj", "{BCA4DC6D-98A6-4F47-AE70-993D5D2B8D49}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "NetaSoundIndexEngineTestConsole", "NetaSoundIndexEngineTestConsole\NetaSoundIndexEngineTestConsole.csproj", "{93EDC6FF-27E6-43C7-A3CE-B531BF93DF98}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetaSoundIndexEngineTestConsole", "NetaSoundIndexEngineTestConsole\NetaSoundIndexEngineTestConsole.csproj", "{93EDC6FF-27E6-43C7-A3CE-B531BF93DF98}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WindowsTaskScheduler", "WindowsTaskScheduler\WindowsTaskScheduler.csproj", "{AAC4B3EC-C566-4B19-83CB-510E3CF5D040}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -27,6 +29,10 @@ Global
 		{93EDC6FF-27E6-43C7-A3CE-B531BF93DF98}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{93EDC6FF-27E6-43C7-A3CE-B531BF93DF98}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{93EDC6FF-27E6-43C7-A3CE-B531BF93DF98}.Release|Any CPU.Build.0 = Release|Any CPU
+		{AAC4B3EC-C566-4B19-83CB-510E3CF5D040}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{AAC4B3EC-C566-4B19-83CB-510E3CF5D040}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{AAC4B3EC-C566-4B19-83CB-510E3CF5D040}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{AAC4B3EC-C566-4B19-83CB-510E3CF5D040}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

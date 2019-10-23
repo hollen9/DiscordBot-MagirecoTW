@@ -16,6 +16,7 @@ namespace MitamaBot.Services.DataStore
         public IDataStore<PlayerAccount, BsonValue> PlayerAccount { get; }
         public IDataStore<Server, BsonValue> Server { get; }
         public IDataStore<PlayerDailyStat, BsonValue> PlayerDailyStat { get; set; }
+        public FollowingInfoCollectionWrapper FollowingInfo { get; set; }
 
 
         public MagirecoInfoService(IConfiguration config)
@@ -25,6 +26,7 @@ namespace MitamaBot.Services.DataStore
             Player = new PlayerCollectionWrapper(Database);
             PlayerAccount = new PlayerAccountCollectionWrapper(Database);
             Server = new ServerCollectionWrapper(Database);
+            FollowingInfo = new FollowingInfoCollectionWrapper(Database);
         }
 
         public class PlayerCollectionWrapper : LiteDbCollectionWrapper<DataModels.Magireco.Player>

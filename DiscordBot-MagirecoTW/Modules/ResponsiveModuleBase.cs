@@ -28,17 +28,60 @@ namespace MitamaBot.Modules
         /// <param name="startNumber">選項起始數字</param>
         /// <param name="isCancellable">是否可被使用者取消</param>
         /// <returns></returns>
-        public async Task<ResponsiveNumberResult> AskNumberQuestion(IUserMessage msgBody, Action<IUserMessage> modifiedMsg, string title, string[] optionsTexts, int startNumber, bool isCancellable, string prependDescription = null, string appendDescription = null, IEnumerable<EmbedFieldBuilder> fields = null, string imageUrl = null)
+        public async Task<ResponsiveNumberResult> AskNumberQuestion(IUserMessage msgBody, Action<IUserMessage> modifiedMsg, string title, string[] optionsTexts, int startNumber, bool isCancellable, string prependDescription = null, string appendDescription = null, EmbedBuilder embedOverride = null)
         {
             var result = new ResponsiveNumberResult();
 
             Embed preEmbed;
             string preContent;
 
-            preEmbed = BuildLinesOfOptions(title, optionsTexts.ToList(), startNumber, true, prependDescription, appendDescription)
-                .WithFields(fields)
-                .WithImageUrl(imageUrl)
-                .Build();
+            var preEmbedBuilder = BuildLinesOfOptions(title, optionsTexts.ToList(), startNumber, true, prependDescription, appendDescription);
+
+            if (embedOverride != null)
+            {
+                if (embedOverride.Author != null)
+                {
+                    preEmbedBuilder.Author = embedOverride.Author;
+                }
+                if (embedOverride.Color != null)
+                {
+                    preEmbedBuilder.Color = embedOverride.Color;
+                }
+                if (embedOverride.Description != null)
+                {
+                    preEmbedBuilder.Description = embedOverride.Description;
+                }
+                if (embedOverride.Fields != null)
+                {
+                    preEmbedBuilder.Fields = embedOverride.Fields;
+                }
+                if (embedOverride.Footer != null)
+                {
+                    preEmbedBuilder.Footer = embedOverride.Footer;
+                }
+                if (embedOverride.ImageUrl != null)
+                {
+                    preEmbedBuilder.ImageUrl = embedOverride.ImageUrl;
+                }
+                if (embedOverride.ThumbnailUrl != null)
+                {
+                    preEmbedBuilder.ThumbnailUrl = embedOverride.ThumbnailUrl;
+                }
+                if (embedOverride.Timestamp != null)
+                {
+                    preEmbedBuilder.Timestamp = embedOverride.Timestamp;
+                }
+                if (embedOverride.Title != null)
+                {
+                    preEmbedBuilder.Title = embedOverride.Title;
+                }
+                if (embedOverride.Url != null)
+                {
+                    preEmbedBuilder.Url = embedOverride.Url;
+                }
+            }
+            preEmbed = preEmbedBuilder.Build();
+
             preContent = null;
 
             if (msgBody == null)
@@ -230,12 +273,12 @@ namespace MitamaBot.Modules
         /// <summary>
         /// 
         /// </summary>
-        /// <param name="msgBody"></param>
+        /// <param name="msgBody">訊息載體</param>
         /// <param name="msgModified">Return a msgBody (if msgBody is null, then this can be used.)</param>
-        /// <param name="title"></param>
-        /// <param name="contentQuestion"></param>
-        /// <param name="isCancellableByButton"></param>
-        /// <param name="isCancellableByKeyword"></param>
+        /// <param name="title">標題</param>
+        /// <param name="contentQuestion">內文</param>
+        /// <param name="isCancellableByButton">是否顯示取消按鈕</param>
+        /// <param name="isCancellableByKeyword">是否偵測取消文字指令</param>
         /// <param name="maxRetries">Max attempts</param>
         /// <param name="conditions">SocketMessage: userMessage; return condition checking result</param>
         /// <param name="conditionFailDo">SocketMessage: userMessage, int: Attempts</param>
@@ -259,6 +302,7 @@ namespace MitamaBot.Modules
             preEmbed = new EmbedBuilder()
                 .WithTitle(title)
                 .WithDescription(contentQuestion)
+                .WithAuthor(Context.User)
                 .WithFooter(isCancellableByKeyword ? $"取消指令: {string.Join("、", ReponseSvc.Options.CancelKeywords)} " : null)
                 .Build();
             preContent = null;
