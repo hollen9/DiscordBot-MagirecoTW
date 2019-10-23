@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Linq;
 using LiteDB;
 using Microsoft.Extensions.Configuration;
 using MitamaBot.DataModels.Magireco;
@@ -12,8 +13,11 @@ namespace MitamaBot.Services.DataStore
         private IConfiguration _config;
         private LiteDatabase Database { get; }
 
+        /// <summary>
+        /// PK: Discord ID (string)
+        /// </summary>
         public IDataStore<Player, BsonValue> Player { get; set; }
-        public IDataStore<PlayerAccount, BsonValue> PlayerAccount { get; }
+        public PlayerAccountCollectionWrapper PlayerAccount { get; }
         public IDataStore<Server, BsonValue> Server { get; }
         public IDataStore<PlayerDailyStat, BsonValue> PlayerDailyStat { get; set; }
         public FollowingInfoCollectionWrapper FollowingInfo { get; set; }
@@ -55,6 +59,25 @@ namespace MitamaBot.Services.DataStore
             {
                 item.LastUpdateTimestamp = DateTime.Now;
                 return base.AddItem(item);
+            }
+
+            /// <summary>
+            /// Get a Discord User's account data Group by Server key
+            /// </summary>
+            /// <param name="discordId"></param>
+            /// <returns></returns>
+            public Dictionary<string, List<PlayerAccount>> FindAccountsByIdAndGroupByServer(ulong discordId)
+            {
+                return FindItems(pa =>
+                    pa.OwnerDiscordId == discordId.ToString())
+                    .GroupBy(x => x.OwnerServerKey)
+                    .ToDictionary(x => x.Key, x => x.ToList());
+            }
+            public List<PlayerAccount> FindAccountsByIdAndServer(ulong discordId, string serverKey)
+            {
+                return FindItems(pa =>
+                    pa.OwnerDiscordId == discordId.ToString() &&
+                    pa.OwnerServerKey == serverKey).ToList();
             }
         }
         public class ServerCollectionWrapper : LiteDbCollectionWrapper<DataModels.Magireco.Server>

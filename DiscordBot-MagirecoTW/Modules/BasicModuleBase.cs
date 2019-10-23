@@ -24,15 +24,5 @@ namespace MitamaBot.Modules
 
         public Task<IUserMessage> ReplyMentionAsync(string content)
             => ReplyAsync($"{Context.User.Mention} {content}", false, null, null);
-
-        //public Task ModifyIfPossible(this IUserMessage msg, Action<MessageProperties> msgProperties)
-        //{
-        //    var msgP = new MessageProperties();
-        //    msgProperties(msgP);
-
-        //    //Context.Guild.CurrentUser.GuildPermissions.
-
-        //    msg.ModifyAsync(x => x = msgP);
-        //}
     }
 }

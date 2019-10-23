@@ -3,6 +3,7 @@ using Discord.Commands;
 using MitamaBot.DataModels.Magireco;
 using MitamaBot.Services;
 using MitamaBot.Services.DataStore;
+using MitamaBot.Helper;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,10 +13,38 @@ using System.Threading.Tasks;
 
 namespace MitamaBot.Modules
 {
-    public class GameInfoModule : ResponsiveModuleBase
+    // 相依性注入、函式
+    public partial class GameInfoModule : ResponsiveModuleBase
     {
         public MagirecoInfoService MagirecoInfoSvc { get; set; }
 
+        private EmbedBuilder GetPlayerAccountEmbedBuilder(PlayerAccount playerAccount)
+        {
+            var followers = MagirecoInfoSvc.FollowingInfo.FindMyFollowerAccount(playerAccount.Id).ToList();
+            var followings = MagirecoInfoSvc.FollowingInfo.FindMyFollowingAccount(playerAccount.Id).ToList();
+
+            var accountFieldBuilders = new List<EmbedFieldBuilder>
+                {
+                    new EmbedFieldBuilder{ Name = "暱稱", Value = playerAccount.GameHandle ?? "--", IsInline = true },
+                    new EmbedFieldBuilder{ Name = "等級", Value = playerAccount.GameLevel == 0 ? "--" : playerAccount.GameLevel.ToString(), IsInline = true },
+                    //new EmbedFieldBuilder{ Name = "鏡層牌位", Value = "無", IsInline = true },
+                    new EmbedFieldBuilder{ Name = "Following", Value = followings.Count, IsInline = true },
+                    new EmbedFieldBuilder{ Name = "Follower", Value = followers.Count, IsInline = true },
+                    //new EmbedFieldBuilder{ Name = "上次更新", Value = "2019/10/31", IsInline = true }
+                };
+            var accountEB = new EmbedBuilder
+            {
+                ImageUrl = playerAccount.ProfileImageUrl,
+                Fields = accountFieldBuilders
+            };
+
+            return accountEB;
+        }
+    }
+
+    // 測試
+    public partial class GameInfoModule
+    {
         //[Command("test-question", RunMode = RunMode.Async)]
         //public async Task TestTextQuestionAsync()
         //{
@@ -62,7 +91,7 @@ namespace MitamaBot.Modules
                 return;
             }
 
-            await msgBody.ModifyAsync(x=> 
+            await msgBody.ModifyAsync(x =>
             {
                 x.Content = $"User chose {userNumberAnswer.Value} and said {userBoolAnswer.Value}";
                 x.Embed = null;
@@ -74,7 +103,7 @@ namespace MitamaBot.Modules
         public async Task TestBooleanAsync()
         {
             bool isCancellable = true;
-            
+
             var msg = await ReplyAsync("請選擇");
             try
             {
@@ -126,38 +155,13 @@ namespace MitamaBot.Modules
             {
                 return;
             }
-            await msgPanel.ModifyAsync(x=>x.Content = $"You chose {((bool)answer.Value ? "Yes" : "No")}");
+            await msgPanel.ModifyAsync(x => x.Content = $"You chose {((bool)answer.Value ? "Yes" : "No")}");
         }
+    }
 
-        [Command("server")]
-        public async Task GetServerInfoAsync()
-        {            
-            var servers = MagirecoInfoSvc.Server.GetItems();
-            if (servers == null || servers.Count() <= 0)
-            {
-                await ReplyAsync("沒有任何伺服器。設定一個吧~");
-            }
-            else
-            {
-                var msg = string.Join(",", servers.Select(sv => sv.ServerKey));
-                await ReplyAsync(msg);
-            }
-        }
-
-        [Command("server-delete", RunMode = RunMode.Async)]
-        [RequireUserPermission(Discord.ChannelPermission.ManageRoles)]
-        public async Task DeleteServerAsync(string serverKey)
-        {
-            if (MagirecoInfoSvc.Server.DeleteItem(serverKey))
-            {
-                await ReplyAsync($"已刪除 `{serverKey}`。");
-            }
-            else
-            {
-                await ReplyAsync($"不存在 `{serverKey}`。");
-            }
-        }
-
+    // 管理員
+    public partial class GameInfoModule
+    {
         [Command("server-edit", RunMode = RunMode.Async)]
         public async Task EditServerInfoAsync()
         {
@@ -211,6 +215,38 @@ namespace MitamaBot.Modules
                 }
                 await confirmMsg.DeleteAsync();
                 return;
+            }
+        }
+        [Command("server-delete", RunMode = RunMode.Async)]
+        [RequireUserPermission(Discord.ChannelPermission.ManageRoles)]
+        public async Task DeleteServerAsync(string serverKey)
+        {
+            if (MagirecoInfoSvc.Server.DeleteItem(serverKey))
+            {
+                await ReplyAsync($"已刪除 `{serverKey}`。");
+            }
+            else
+            {
+                await ReplyAsync($"不存在 `{serverKey}`。");
+            }
+        }
+    }
+
+    // 一般使用者
+    public partial class GameInfoModule
+    {        
+        [Command("server")]
+        public async Task GetServerInfoAsync()
+        {            
+            var servers = MagirecoInfoSvc.Server.GetItems();
+            if (servers == null || servers.Count() <= 0)
+            {
+                await ReplyAsync("沒有任何伺服器。設定一個吧~");
+            }
+            else
+            {
+                var msg = string.Join(",", servers.Select(sv => sv.ServerKey));
+                await ReplyAsync(msg);
             }
         }
 
@@ -522,7 +558,7 @@ namespace MitamaBot.Modules
                 {
                     new EmbedFieldBuilder{ Name = "暱稱", Value = chosePlayerAccount.GameHandle ?? "--", IsInline = true },
                     new EmbedFieldBuilder{ Name = "等級", Value = chosePlayerAccount.GameLevel == 0 ? "--" : chosePlayerAccount.GameLevel.ToString(), IsInline = true },
-                    new EmbedFieldBuilder{ Name = "鏡層牌位", Value = "無", IsInline = true },
+                    //new EmbedFieldBuilder{ Name = "鏡層牌位", Value = "無", IsInline = true },
                     new EmbedFieldBuilder{ Name = "Following", Value = followings.Count, IsInline = true },
                     new EmbedFieldBuilder{ Name = "Follower", Value = followers.Count, IsInline = true },
                     //new EmbedFieldBuilder{ Name = "上次更新", Value = "2019/10/31", IsInline = true }
@@ -644,7 +680,8 @@ namespace MitamaBot.Modules
                         {
                             async (msg, attempts) => 
                             {
-                                await msgPanel.ModifyAsync(x=> x.Content = $"{Context.User.Mention} 簡介不得超過50字。");
+                                await msgPanel.ModifyAsync(x=> 
+                                    x.Content = Context.User.ContentWithMention("簡介不得超過50字！", MessageHelper.ResultKind.Forbidden));
                             }
                         });
                     if (ansComment.IsCancelled)
@@ -653,7 +690,18 @@ namespace MitamaBot.Modules
                     }
                     if (ansComment.IsUserAnswered)
                     {
-
+                        chosePlayerAccount.Description = ansComment.Value;
+                        string resultMsg;
+                        if (MagirecoInfoSvc.PlayerAccount.UpdateItem(chosePlayerAccount, chosePlayerAccount.Id))
+                        {
+                            resultMsg = Context.User.ContentWithMention("已變更個人簡介。", MessageHelper.ResultKind.Succeed);
+                        }
+                        else
+                        {
+                            resultMsg = Context.User.ContentWithMention("個人簡介變更失敗！", MessageHelper.ResultKind.Failed);
+                        }
+                        await msgPanel.ModifyAsync(x => x.Content = resultMsg);
+                        continue;
                     }
                 }
                 // 設置個人檔案圖片網址
@@ -678,7 +726,8 @@ namespace MitamaBot.Modules
                             async (msg, attempts) =>
                             {
                                 await msgPanel.ModifyAsync(x=>
-                                    x.Content=$"{Context.User.Mention} 請輸入有效的圖片網址。`還剩 {maxAttempts - attempts} 次機會`");
+                                    x.Content = Context.User.ContentWithMention($"請輸入有效的圖片網址。`還剩 {maxAttempts - attempts} 次機會`", MessageHelper.ResultKind.Forbidden)
+                                    );
                             }
                         });
                     if (!ansImgUrl.IsUserAnswered)
@@ -699,129 +748,9 @@ namespace MitamaBot.Modules
                     await msgPanel.ModifyAsync(x => x.Content = $"{Context.User.Mention} 已更新個人檔案截圖。");
                     continue;
                 }
-                // 
-
-
-                //await msgPanel.ModifyAsync(x =>
-                //{
-                //    x.Content = $"選擇 {playerIdMenuAnswer.Value}";
-                //    x.Embed = null;
-                //});
+                
             }
             while (!flagIsDialogEnded);
-
-            //else
-            //{
-            //    preContent = $"選擇 {userChoseNumber}";
-            //    preEmbed = null;
-            //}
-
-            //await msgPanel.ModifyAsync(x => {
-            //    x.Content = preContent;
-            //    x.Embed = preEmbed;
-            //});
-
-
-
-
-
-            //string playerId;
-
-            //while (true)
-            //{
-            //    var userAnsMsg = await ReponseSvc.WaitForMessageAsync((msg) =>
-            //    {
-            //        if (msg.Author.IsBot || msg.Author.Id != Context.User.Id)
-            //        {
-            //            return false;
-            //        }
-
-            //        return (msg.Channel.Id == Context.Channel.Id);
-            //    });
-            //    if (userAnsMsg.Content.Length != 8)
-            //    {
-            //        await msgEntryPoint.ModifyAsync(x => 
-            //        {
-            //            x.Content = secondContent + "\n　:warning: **輸入錯誤! 好友ID為8碼。**";
-            //        });
-            //        continue;
-            //    }
-            //    playerId = userAnsMsg.Content;
-            //    break;
-            //}
-
-
-
-
-
-            //var confirmMsg = await ReplyMentionAsync($"綁定 __`{playerId}`__ 到 **`{serverName}`**，是嗎？");
-            //await confirmMsg.AddReactionAsync(new Discord.Emoji("✅"));
-            //await confirmMsg.AddReactionAsync(new Discord.Emoji("❎"));
-
-            //var ractConfirm = await ReponseSvc.WaitForReactionAsync((cache, ch, r) =>
-            //{
-            //    if (r.User.Value.IsBot || r.UserId != Context.User.Id)
-            //    {
-            //        return false;
-            //    }
-
-            //    return ch.Id == Context.Channel.Id &&
-            //    (r.Emote.Name == "✅" || r.Emote.Name == "❎");
-            //});
-
-            //if (ractConfirm == null)
-            //{
-            //    await msgEntryPoint.DeleteAsync();
-            //    await confirmMsg.ModifyAsync(x =>
-            //    {
-            //        x.Content = $"{Context.User.Mention} 操作逾時。";
-            //        x.Embed = null;
-            //    });
-            //    await confirmMsg.RemoveAllReactionsAsync();
-            //}
-            //else if (ractConfirm.Emote.Name == "✅")
-            //{
-
-            //    if (currentPl.ServerKey_PlayerAccounts.TryAdd(serverKey, new PlayerAccount()
-            //    {
-            //        GameId = playerId,
-            //        Id = Guid.NewGuid(),
-            //    }))
-            //    {
-            //        var existPStat = currentPl.ServerKey_PlayerAccounts[serverKey];
-            //        existPStat.GameId = playerId;
-            //    }
-            //    var isSucceed = MagirecoInfoSvc.PlayerCW.UpsertItem(currentPl, currentPl.DiscordId);
-
-            //    if (isSucceed)
-            //    {
-            //        await confirmMsg.ModifyAsync(x =>
-            //        {
-            //            x.Content = $"{Context.User.Mention} 已新增 __`{playerId}`__ 至 **`{serverName}`**。";
-            //            x.Embed = null;
-            //        });
-            //    }
-            //    else
-            //    {
-            //        await confirmMsg.ModifyAsync(x =>
-            //        {
-            //            x.Content = $"{Context.User.Mention} :warning: 失敗: 無法新增 __`{playerId}`__ 至 **`{serverName}`**。";
-            //            x.Embed = null;
-            //        });
-            //    }
-            //    await msgEntryPoint.DeleteAsync();
-            //    await confirmMsg.RemoveAllReactionsAsync();
-            //}
-            //else
-            //{
-            //    await msgEntryPoint.DeleteAsync();
-            //    await confirmMsg.ModifyAsync(x =>
-            //    {
-            //        x.Content = $"{Context.User.Mention} 已放棄綁定小圓ID程序。";
-            //        x.Embed = null;
-            //    });
-            //    await confirmMsg.RemoveAllReactionsAsync();
-            //}
         }
 
         [Command("profile-edit", RunMode = RunMode.Async)]
@@ -1026,6 +955,79 @@ namespace MitamaBot.Modules
             
         }
 
-        
+        [Command("profile", RunMode = RunMode.Async)]
+        public async Task ViewProfile(IUser user = null, string serverKey = null)
+        {
+            string yohoMessage;
+            string queryUserName;
+
+            if (user == null)
+            {
+                user = Context.User;
+                queryUserName = user.ToString();
+                yohoMessage = $"你的個人檔案如下：";
+            }
+            else
+            {
+                if (user is IGuildUser guildUser)
+                {
+                    queryUserName = guildUser.Nickname ?? user.ToString();
+                }
+                else
+                {
+                    queryUserName = user.ToString();
+                }
+                yohoMessage = $"喲喝～ {queryUserName} 的個人檔案如下：";
+            }
+
+            var player = MagirecoInfoSvc.Player.GetItem(user.Id.ToString());
+            if (player == null)
+            {
+                await ReplyAsync(Context.User.ContentWithMention($"查無個人檔案，可以請 {queryUserName} 建立一個。"));
+                return;
+            }
+
+            await ReplyAsync(MessageHelper.ContentWithMention(Context.User, yohoMessage),false,
+                new EmbedBuilder()
+                .WithAuthor(user)
+                .WithTitle("總個人檔案")
+                .WithDescription(player.Description ?? string.Empty)
+                .Build()
+                );
+
+            List<PlayerAccount> playerAccounts;
+            if (serverKey == null)
+            {
+                playerAccounts = MagirecoInfoSvc.PlayerAccount.FindItems(x =>
+                    x.OwnerDiscordId == user.Id.ToString()
+                    )
+                    .ToList();
+            }
+            else
+            {
+                playerAccounts = MagirecoInfoSvc.PlayerAccount.FindItems(x =>
+                    x.OwnerDiscordId == user.Id.ToString() &&
+                    x.OwnerServerKey == serverKey
+                    )
+                    .ToList();
+                if (playerAccounts == null || playerAccounts.Count == 0)
+                {
+                    await ReplyAsync(Context.User.ContentWithMention("查無任何玩家資料。"));
+                    return;
+                }
+
+                //var dict = MagirecoInfoSvc.PlayerAccount.FindAccountsByIdAndGroupByServer(user.Id);
+                //if (!dict.TryGetValue(serverKey, out playerAccounts))
+                //{
+                //    await ReplyAsync(Context.User.ContentWithMention("查無此伺服器。"));
+                //    return;
+                //}
+            }
+            foreach (var playerAccount in playerAccounts)
+            {
+                var eb = this.GetPlayerAccountEmbedBuilder(playerAccount);
+                await ReplyEmbedAsync(eb);
+            }
+        }
     }
 }
