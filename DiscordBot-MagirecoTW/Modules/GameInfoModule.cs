@@ -375,11 +375,26 @@ namespace MitamaBot.Modules
                         pa.OwnerServerKey == choseServer.ServerKey &&
                         pa.OwnerDiscordId == userId).ToList();
 
-            List<string> preOptionsTexts = playerAccountsOfChoseServer.Select(x => new string($"{x.GameId}")).ToList();
-            preOptionsTexts.Insert(0, "【新增帳號】");
+            IEnumerable<string> accountShortInfos = playerAccountsOfChoseServer.Select(x => new string($"{x.GameId}"));
+            List<string> preOptionsTexts = new List<string>(accountShortInfos);
 
+            int optionStartNumber;
+            if (playerAccountsOfChoseServer.Count < 2)
+            {
+                preOptionsTexts.Insert(0, "【新增帳號】");
+                optionStartNumber = 0;
+            }
+            else
+            {
+                optionStartNumber = 1;
+            }
+            if (playerAccountsOfChoseServer.Count >= 1)
+            {
+                preOptionsTexts.Add("【刪除帳號】");
+            }
+            
             preEmbed = BuildLinesOfOptions(
-                $"__{choseServer.ChineseName}__ 帳號編輯", preOptionsTexts, 0, true).Build();
+                $"__{choseServer.ChineseName}__ 帳號編輯", preOptionsTexts, optionStartNumber, true, "【單一伺服器帳號登錄上限為2】\n").Build();
             preContent = null;
 
             await msgPanel.ModifyAsync(x => {
@@ -389,13 +404,13 @@ namespace MitamaBot.Modules
 
             try
             {
-                preEmojiButtons = ReponseSvc.GetNumberOptionsEmojis(preOptionsTexts.Count, 0, true);
+                preEmojiButtons = ReponseSvc.GetNumberOptionsEmojis(preOptionsTexts.Count, optionStartNumber, true);
 
                 //Fire-and-forget (without waiting for completion)
                 CancellationTokenSource tcs_react_adding = new CancellationTokenSource();
                 await Task.Factory.StartNew(async () => await msgPanel.AddReactionsAsync(preEmojiButtons.ToArray(), new RequestOptions() { CancelToken = tcs_react_adding.Token }));
 
-                userChoseNumber = await ReponseSvc.WaitForNumberAnswerAsync(Context.Channel.Id, preEmojiButtons, 0, isCancellable);
+                userChoseNumber = await ReponseSvc.WaitForNumberAnswerAsync(Context.Channel.Id, preEmojiButtons, optionStartNumber, isCancellable);
                 tcs_react_adding.Cancel();
 
                 if (userChoseNumber == null)
@@ -404,7 +419,7 @@ namespace MitamaBot.Modules
                     preContent = $"{Context.User.Mention} 已取消。";
                     return;
                 }
-                else if (userChoseNumber >= 0 && userChoseNumber < preOptionsTexts.Count)
+                else if (userChoseNumber >= optionStartNumber && userChoseNumber < preOptionsTexts.Count)
                 {
                     preEmbed = null;
                     preContent = null;
@@ -438,18 +453,18 @@ namespace MitamaBot.Modules
             {
                 return;
             }
-            else if (userChoseNumber == 0)
+            else if (optionStartNumber == 0 && userChoseNumber == 0)
             {
-                bool isOk = false,                     
+                bool isOk = false,
                      isAbort = false;
                 int maxAttempts = 3;
 
                 while (!isOk || isAbort)
                 {
                     isAbort = false;
-                    var preIdConditions = new List<Func<Discord.WebSocket.SocketMessage, bool>> 
+                    var preIdConditions = new List<Func<Discord.WebSocket.SocketMessage, bool>>
                     {
-                        userMsg => 
+                        userMsg =>
                         {
                             if (userMsg.Content.Length != 8)
                             {
@@ -477,7 +492,7 @@ namespace MitamaBot.Modules
                     {
                         return;
                     }
-                    
+
                     if (isAbort)
                     {
                         return;
@@ -497,7 +512,7 @@ namespace MitamaBot.Modules
                         return;
                     }
 
-                    var newAccountItem = new PlayerAccount 
+                    var newAccountItem = new PlayerAccount
                     {
                         OwnerDiscordId = Context.User.Id.ToString(),
                         OwnerServerKey = choseServer.ServerKey,
@@ -526,9 +541,24 @@ namespace MitamaBot.Modules
                     break;
                 }
             }
+            // 刪除
+            else if (playerAccountsOfChoseServer.Count >= 1 && (int)userChoseNumber == preOptionsTexts.Count - 1)
+            {
+                do
+                {
+                    var delWhichAns = await AskNumberQuestion(msgPanel, x => msgPanel = x,
+                        "帳號刪除", accountShortInfos.ToArray(), 1, true);
+                    if (!delWhichAns.IsUserAnswered || delWhichAns.IsCancelled)
+                    {
+                        return;
+                    }
+                    await msgPanel.ModifyAsync(x => x.Content = Context.User.ContentWithMention($"你選擇了 {playerAccountsOfChoseServer[(int)delWhichAns.Value - 1].GameId}"));
+                    await Task.Delay(1500);
+                } while (true);
+            }
             else
             {
-                chosePlayerAccount = playerAccountsOfChoseServer[(int)userChoseNumber - 1];
+                chosePlayerAccount = playerAccountsOfChoseServer[(int)userChoseNumber - 1 + optionStartNumber];
             }
 
             bool flagIsFirstRunLoop = true;
