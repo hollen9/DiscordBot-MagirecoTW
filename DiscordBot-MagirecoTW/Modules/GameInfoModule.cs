@@ -256,335 +256,270 @@ namespace MitamaBot.Modules
             //Shortcuts / Declarances
             string userId = Context.User.Id.ToString();
 
-            IUserMessage msgPanel;
-            List<Emoji> preEmojiButtons;
+            IUserMessage msgPanel = null;
             StringBuilder preContentBuilder;
-            Embed preEmbed = null;
-            int? userChoseNumber = null;
-            bool isCancellable;
-
+            //int? userChoseNumber = null;
+            
             PlayerAccount chosePlayerAccount = null;
             Server choseServer = null;
-            bool flagIsDialogEnded = false;
-            
+            bool flagRestartWhole;
+
             //Start
-            var serversEm = MagirecoInfoSvc.Server.GetItems();
-
-            var servers = serversEm.ToList();
-
-            if (servers == null || servers.Count == 0)
+            do
             {
-                await ReplyMentionAsync("噢噢! 好像還沒有設定任何伺服器\n先等管理員新增完成了再來使用吧");
-                return;
-            }
+                flagRestartWhole = false;
 
-            var player = MagirecoInfoSvc.Player.GetItem(Context.User.Id.ToString());
+                var serversEm = MagirecoInfoSvc.Server.GetItems();
 
-            preContentBuilder = new StringBuilder();
-            if (player == null)
-            {
-                var noPlWarnMsg = await ReplyAsync("由於你還沒有建置玩家檔案，所以先引導建立好，再回頭綁定ID吧~");
-                await EditPlayerDescription();
-                player = MagirecoInfoSvc.Player.GetItem(Context.User.Id.ToString());
+                var servers = serversEm.ToList();
 
+                if (servers == null || servers.Count == 0)
+                {
+                    await ReplyMentionAsync("噢噢! 好像還沒有設定任何伺服器\n先等管理員新增完成了再來使用吧");
+                    return;
+                }
+
+                var player = MagirecoInfoSvc.Player.GetItem(Context.User.Id.ToString());
+
+                preContentBuilder = new StringBuilder();
                 if (player == null)
                 {
-                    await noPlWarnMsg.ModifyAsync(msg=>
+                    var noPlWarnMsg = await ReplyAsync("由於你還沒有建置玩家檔案，所以先引導建立好，再回頭綁定ID吧~");
+                    await EditPlayerDescription();
+                    player = MagirecoInfoSvc.Player.GetItem(Context.User.Id.ToString());
+
+                    if (player == null)
                     {
-                        msg.Content = $"{Context.User.Mention} :warning: 資料存取錯誤: 個人檔案建立失敗，中止帳號綁定程序。";
-                    });
-                    return;
-                }
-            }
-
-            var playerAccounts = MagirecoInfoSvc.PlayerAccount.FindItems(pAccount => pAccount.OwnerDiscordId == userId).ToList();
-
-            if (playerAccounts == null || playerAccounts.Count == 0)
-            {
-                preContentBuilder.Append($"你還沒有綁定任何遊戲帳號，");
-            }
-            preContentBuilder.Append($"請問你想要查看哪個伺服器？");
-
-            var embedPromptServer = BuildLinesOfOptions(
-                "遊戲帳號伺服器", servers.Select(x => new string($"{x.ChineseName} `{x.ServerKey}`")
-                ).ToList(), 1,true
-                );
-            msgPanel = await ReplyAsync(preContentBuilder.ToString(), false, embedPromptServer.Build());
-
-            isCancellable = true;
-            preEmojiButtons = ReponseSvc.GetNumberOptionsEmojis(servers.Count, 1, isCancellable);
-
-            string preContent = null;
-
-            //詢問要看哪個伺服器的帳號呢
-            try
-            {
-                //Fire-and-forget (without waiting for completion)
-                CancellationTokenSource tcs_react_adding = new CancellationTokenSource();
-                await Task.Factory.StartNew(async () => await msgPanel.AddReactionsAsync(preEmojiButtons.ToArray(), new RequestOptions() { CancelToken = tcs_react_adding.Token }));
-
-                userChoseNumber = await ReponseSvc.WaitForNumberAnswerAsync(Context.Channel.Id, preEmojiButtons, 1, isCancellable);
-                tcs_react_adding.Cancel();
-
-                //完成詢問目標伺服器
-                
-                if (userChoseNumber == null)
-                {
-                    preEmbed = null;
-                    preContent = $"{Context.User.Mention} 已取消。";
-                    return;
-                }
-                else if (userChoseNumber - 1 >= 0 && userChoseNumber <= servers.Count)
-                {
-                    choseServer = servers[(int)userChoseNumber - 1];
-
-                    preEmbed = null;
-                    preContent = null;
-                }
-            }
-            catch (TimeoutException ex)
-            {
-                preEmbed = null;
-                preContent = $"{Context.User.Mention} {ex.Message}";
-                return;
-            }
-            catch (Exception ex)
-            {
-                preEmbed = null;
-                preContent = $"{Context.User.Mention} {ex.Message}";
-                return;
-            }
-            finally
-            {
-                await msgPanel.RemoveAllReactionsAsync();
-                if (preEmbed != null || preContent != null)
-                {
-                    await msgPanel.ModifyAsync(x => {
-                        x.Content = preContent;
-                        x.Embed = preEmbed;
-                    });
-                }
-            }
-            
-            if (choseServer == null)
-            {
-                return;
-            }
-
-            var playerAccountsOfChoseServer = MagirecoInfoSvc.PlayerAccount.FindItems(pa =>
-                        pa.OwnerServerKey == choseServer.ServerKey &&
-                        pa.OwnerDiscordId == userId).ToList();
-
-            IEnumerable<string> accountShortInfos = playerAccountsOfChoseServer.Select(x => new string($"{x.GameId}"));
-            List<string> preOptionsTexts = new List<string>(accountShortInfos);
-
-            int optionStartNumber;
-            if (playerAccountsOfChoseServer.Count < 2)
-            {
-                preOptionsTexts.Insert(0, "【新增帳號】");
-                optionStartNumber = 0;
-            }
-            else
-            {
-                optionStartNumber = 1;
-            }
-            if (playerAccountsOfChoseServer.Count >= 1)
-            {
-                preOptionsTexts.Add("【刪除帳號】");
-            }
-            
-            preEmbed = BuildLinesOfOptions(
-                $"__{choseServer.ChineseName}__ 帳號編輯", preOptionsTexts, optionStartNumber, true, "【單一伺服器帳號登錄上限為2】\n").Build();
-            preContent = null;
-
-            await msgPanel.ModifyAsync(x => {
-                x.Content = preContent;
-                x.Embed = preEmbed;
-            });
-
-            try
-            {
-                preEmojiButtons = ReponseSvc.GetNumberOptionsEmojis(preOptionsTexts.Count, optionStartNumber, true);
-
-                //Fire-and-forget (without waiting for completion)
-                CancellationTokenSource tcs_react_adding = new CancellationTokenSource();
-                await Task.Factory.StartNew(async () => await msgPanel.AddReactionsAsync(preEmojiButtons.ToArray(), new RequestOptions() { CancelToken = tcs_react_adding.Token }));
-
-                userChoseNumber = await ReponseSvc.WaitForNumberAnswerAsync(Context.Channel.Id, preEmojiButtons, optionStartNumber, isCancellable);
-                tcs_react_adding.Cancel();
-
-                if (userChoseNumber == null)
-                {
-                    preEmbed = null;
-                    preContent = $"{Context.User.Mention} 已取消。";
-                    return;
-                }
-                else if (userChoseNumber >= optionStartNumber && userChoseNumber < preOptionsTexts.Count)
-                {
-                    preEmbed = null;
-                    preContent = null;
-                }
-            }
-            catch (TimeoutException ex)
-            {
-                preEmbed = null;
-                preContent = $"{Context.User.Mention} {ex.Message}";
-                return;
-            }
-            catch (Exception ex)
-            {
-                preEmbed = null;
-                preContent = $"{Context.User.Mention} {ex.Message}";
-                return;
-            }
-            finally
-            {
-                await msgPanel.RemoveAllReactionsAsync();
-                if (preEmbed != null || preContent != null)
-                {
-                    await msgPanel.ModifyAsync(x => {
-                        x.Content = preContent;
-                        x.Embed = preEmbed;
-                    });
-                }
-            }
-
-            if (userChoseNumber == null)
-            {
-                return;
-            }
-            else if (optionStartNumber == 0 && userChoseNumber == 0)
-            {
-                bool isOk = false,
-                     isAbort = false;
-                int maxAttempts = 3;
-
-                while (!isOk || isAbort)
-                {
-                    isAbort = false;
-                    var preIdConditions = new List<Func<Discord.WebSocket.SocketMessage, bool>>
-                    {
-                        userMsg =>
+                        await noPlWarnMsg.ModifyAsync(msg =>
                         {
-                            if (userMsg.Content.Length != 8)
-                            {
-                                return false;
-                            }
-                            return true;
-                        }
-                    };
-
-                    var conditionsFailDo = new List<Action<Discord.WebSocket.SocketMessage, int>> {
-                        async (userMsg, attempts) =>
-                        {
-                            if (attempts <= maxAttempts)
-                            {
-                                await msgPanel.ModifyAsync(x=>x.Content = $"{Context.User.Mention} 玩家ID為8碼! `(還剩{maxAttempts-attempts}次機會)`");
-                            }
-                        }
-                    };
-
-                    var playerIdAnswer = await AskTextQuestion(
-                        msgPanel, msg => msgPanel = msg, "新增帳號", "請輸入8碼的玩家ID。", true, true, maxAttempts, preIdConditions, conditionsFailDo);
-
-                    // 新增帳號
-                    if (!playerIdAnswer.IsUserAnswered || playerIdAnswer.IsCancelled)
-                    {
-                        return;
-                    }
-
-                    if (isAbort)
-                    {
-                        return;
-                    }
-
-                    var addConfirmAnswer = await AskBooleanQuestion(msgPanel, msg => msgPanel = msg,
-                        "帳號新增確認", $"你確認要新增以下帳號至`{choseServer.ChineseName}`嗎?\n> **{playerIdAnswer.Value}**",
-                        true);
-
-                    if (addConfirmAnswer.Value == false)
-                    {
-                        continue;
-                    }
-
-                    if (addConfirmAnswer.IsCancelled || addConfirmAnswer.IsTimedout || addConfirmAnswer.IsUnknownErrorOccurred)
-                    {
-                        return;
-                    }
-
-                    var newAccountItem = new PlayerAccount
-                    {
-                        OwnerDiscordId = Context.User.Id.ToString(),
-                        OwnerServerKey = choseServer.ServerKey,
-                        GameId = playerIdAnswer.Value
-                    };
-                    newAccountItem.Id = MagirecoInfoSvc.PlayerAccount.AddItem(newAccountItem);
-
-                    if (newAccountItem.Id == null)
-                    {
-                        await msgPanel.ModifyAsync(x =>
-                        {
-                            x.Embed = null;
-                            x.Content = $"{Context.User.Mention} ID 新增失敗。";
+                            msg.Content = $"{Context.User.Mention} :warning: 資料存取錯誤: 個人檔案建立失敗，中止帳號綁定程序。";
                         });
                         return;
+                    }
+                }
+
+                var playerAccounts = MagirecoInfoSvc.PlayerAccount.FindItems(pAccount => pAccount.OwnerDiscordId == userId).ToList();
+
+                if (playerAccounts == null || playerAccounts.Count == 0)
+                {
+                    preContentBuilder.Append($"你還沒有綁定任何遊戲帳號，");
+                }
+                preContentBuilder.Append($"請問你想要查看哪個伺服器？");
+
+                //詢問要看哪個伺服器的帳號呢
+                var ansWhichServer = await AskNumberQuestion(null, x => msgPanel = x, preContentBuilder.ToString(),
+                    servers.Select(x => new string($"{x.ChineseName} `{x.ServerKey}`")).ToArray(),
+                    1, true);
+
+                if (!ansWhichServer.IsUserAnswered || ansWhichServer.IsCancelled)
+                {
+                    return;
+                }
+                choseServer = servers[(int)ansWhichServer.Value-1];
+
+                do
+                {
+                    var playerAccountsOfChoseServer = MagirecoInfoSvc.PlayerAccount.FindItems(pa =>
+                            pa.OwnerServerKey == choseServer.ServerKey &&
+                            pa.OwnerDiscordId == userId).ToList();
+
+                    IEnumerable<string> accountShortInfos = playerAccountsOfChoseServer.Select(x =>
+                        new string($"【{x.GameId}】{(x.GameHandle == null ? string.Empty : $"`{x.GameHandle}")}"
+                        ));
+                    List<string> accountPreOptionsTexts = new List<string>(accountShortInfos);
+
+
+                    int optionAccountStartNumber;
+                    if (playerAccountsOfChoseServer.Count < 2)
+                    {
+                        accountPreOptionsTexts.Insert(0, "【新增帳號】");
+                        optionAccountStartNumber = 0;
                     }
                     else
                     {
-                        chosePlayerAccount = newAccountItem;
-                        await msgPanel.ModifyAsync(x =>
-                        {
-                            x.Embed = null;
-                            x.Content = $"{Context.User.Mention} ID 新增成功。";
-                        });
+                        optionAccountStartNumber = 1;
                     }
-                    break;
-                }
-            }
-            // 刪除
-            else if (playerAccountsOfChoseServer.Count >= 1 && (int)userChoseNumber == preOptionsTexts.Count - 1)
-            {
-                do
-                {
-                    var delWhichAns = await AskNumberQuestion(msgPanel, x => msgPanel = x,
-                        "帳號刪除", accountShortInfos.ToArray(), 1, true);
-                    if (!delWhichAns.IsUserAnswered || delWhichAns.IsCancelled)
+                    if (playerAccountsOfChoseServer.Count >= 1)
+                    {
+                        accountPreOptionsTexts.Add("【刪除帳號】");
+                    }
+
+                    var ansServerAccount = await AskNumberQuestion(msgPanel, x => msgPanel = x,
+                        $"__{choseServer.ChineseName}__ 帳號編輯", accountPreOptionsTexts.ToArray(), optionAccountStartNumber, true,
+                        "　*※單一伺服器帳號登錄上限為2*\n"
+                        );
+
+                    if (!ansServerAccount.IsUserAnswered)
                     {
                         return;
                     }
-                    await msgPanel.ModifyAsync(x => x.Content = Context.User.ContentWithMention($"你選擇了 {playerAccountsOfChoseServer[(int)delWhichAns.Value - 1].GameId}"));
-                    await Task.Delay(1500);
+                    if (ansServerAccount.IsCancelled)
+                    {
+                        flagRestartWhole = true;
+                        break;
+                    }
+                    // 新增帳號
+                    else if (optionAccountStartNumber == 0 && ansServerAccount.Value == 0)
+                    {
+                        int maxAttempts = 3;
+
+                        while (true)
+                        {
+                            
+                            var preIdConditions = new List<Func<Discord.WebSocket.SocketMessage, bool>>
+                            {
+                                userMsg =>
+                                {
+                                    if (userMsg.Content.Length != 8)
+                                    {
+                                        return false;
+                                    }
+                                    return true;
+                                }
+                            };
+
+                            var conditionsFailDo = new List<Action<Discord.WebSocket.SocketMessage, int>> 
+                            {
+                                async (userMsg, attempts) =>
+                                {
+                                    if (attempts <= maxAttempts)
+                                    {
+                                        await msgPanel.ModifyAsync(x=>x.Content = $"{Context.User.Mention} 玩家ID為8碼! `(還剩{maxAttempts-attempts}次機會)`");
+                                    }
+                                }
+                            };
+
+                            var playerIdAnswer = await AskTextQuestion(
+                                msgPanel, msg => msgPanel = msg, "新增帳號", "請輸入8碼的玩家ID。", true, true, maxAttempts, preIdConditions, conditionsFailDo);
+
+                            // 新增帳號
+                            if (!playerIdAnswer.IsUserAnswered || playerIdAnswer.IsCancelled)
+                            {
+                                return;
+                            }
+
+                            var addConfirmAnswer = await AskBooleanQuestion(msgPanel, msg => msgPanel = msg,
+                                "帳號新增確認", $"你確認要新增以下帳號至`{choseServer.ChineseName}`嗎?\n> **{playerIdAnswer.Value}**",
+                                true);
+
+                            if (addConfirmAnswer.Value == false)
+                            {
+                                continue;
+                            }
+
+                            if (addConfirmAnswer.IsCancelled || addConfirmAnswer.IsTimedout || addConfirmAnswer.IsUnknownErrorOccurred)
+                            {
+                                return;
+                            }
+
+                            var newAccountItem = new PlayerAccount
+                            {
+                                OwnerDiscordId = Context.User.Id.ToString(),
+                                OwnerServerKey = choseServer.ServerKey,
+                                GameId = playerIdAnswer.Value
+                            };
+                            newAccountItem.Id = MagirecoInfoSvc.PlayerAccount.AddItem(newAccountItem);
+
+                            if (newAccountItem.Id == null)
+                            {
+                                await msgPanel.ModifyAsync(x =>
+                                {
+                                    x.Embed = null;
+                                    x.Content = $"{Context.User.Mention} ID 新增失敗。";
+                                });
+                                return;
+                            }
+                            else
+                            {
+                                chosePlayerAccount = newAccountItem;
+                                await msgPanel.ModifyAsync(x =>
+                                {
+                                    x.Embed = null;
+                                    x.Content = $"{Context.User.Mention} ID 新增成功。";
+                                });
+
+                                playerAccountsOfChoseServer = MagirecoInfoSvc.PlayerAccount.FindItems(pa =>
+                                    pa.OwnerServerKey == choseServer.ServerKey &&
+                                    pa.OwnerDiscordId == userId).ToList();
+
+                                accountShortInfos = playerAccountsOfChoseServer.Select(x =>
+                                    new string($"【{x.GameId}】{(x.GameHandle == null ? string.Empty : $"`{x.GameHandle}")}"
+                                    ));
+                            }
+                            break;
+                        }
+                        continue;
+                    }
+                    // 刪除
+                    else if (playerAccountsOfChoseServer.Count >= 1 && ansServerAccount.Value == accountPreOptionsTexts.Count - 1 + optionAccountStartNumber)
+                    {
+                        do
+                        {
+                            playerAccountsOfChoseServer = MagirecoInfoSvc.PlayerAccount.FindItems(pa =>
+                            pa.OwnerServerKey == choseServer.ServerKey &&
+                            pa.OwnerDiscordId == userId).ToList();
+
+                            accountShortInfos = playerAccountsOfChoseServer.Select(x =>
+                                new string($"【{x.GameId}】{(x.GameHandle == null ? string.Empty : $"`{x.GameHandle}")}"
+                                ));
+
+                            var delWhichAns = await AskNumberQuestion(msgPanel, x => msgPanel = x,
+                                "帳號刪除", accountShortInfos.ToArray(), 1, true, "取消以結束刪除模式\n");
+                            if (delWhichAns.IsCancelled)
+                            {
+                                flagRestartWhole = true;
+                                break;
+                            }
+                            if (!delWhichAns.IsUserAnswered)
+                            {
+                                return;
+                            }
+                            var chooseDelPA = playerAccountsOfChoseServer[(int)delWhichAns.Value-1];
+                            if (MagirecoInfoSvc.PlayerAccount.DeleteItem(chooseDelPA.Id))
+                            {
+                                await msgPanel.ModifyAsync(x => x.Content = Context.User.ContentWithMention($"已刪除 {chooseDelPA.GameId}"));
+                            }
+                            else
+                            {
+                                await msgPanel.ModifyAsync(x => x.Content = Context.User.ContentWithMention($"刪除失敗: {chooseDelPA.GameId}"));
+                            }
+                            await Task.Delay(1500);
+                        } while (true);
+                    }
+                    else
+                    {
+                        chosePlayerAccount = playerAccountsOfChoseServer[(int)ansServerAccount.Value - optionAccountStartNumber];
+                        break;
+                    }
                 } while (true);
-            }
-            else
-            {
-                chosePlayerAccount = playerAccountsOfChoseServer[(int)userChoseNumber - 1 + optionStartNumber];
-            }
-
-            bool flagIsFirstRunLoop = true;
-            do
-            {
-                var followers = MagirecoInfoSvc.FollowingInfo.FindMyFollowerAccount(chosePlayerAccount.Id).ToList();
-                var followings = MagirecoInfoSvc.FollowingInfo.FindMyFollowingAccount(chosePlayerAccount.Id).ToList();
-
-                if (!flagIsFirstRunLoop)
+                if (flagRestartWhole)
                 {
-                    chosePlayerAccount = MagirecoInfoSvc.PlayerAccount.GetItem(chosePlayerAccount.Id);
-                    await Task.Delay(1500);
+                    continue;
                 }
-                flagIsFirstRunLoop = false;
-                flagIsDialogEnded = false;
-                var optionsTexts = new string[]
+                
+                bool flagIsFirstRunLoop = true;
+                do
                 {
+                    var followers = MagirecoInfoSvc.FollowingInfo.FindMyFollowerAccount(chosePlayerAccount.Id).ToList();
+                    var followings = MagirecoInfoSvc.FollowingInfo.FindMyFollowingAccount(chosePlayerAccount.Id).ToList();
+
+                    if (!flagIsFirstRunLoop)
+                    {
+                        chosePlayerAccount = MagirecoInfoSvc.PlayerAccount.GetItem(chosePlayerAccount.Id);
+                        await Task.Delay(1500);
+                    }
+                    flagIsFirstRunLoop = false;
+                    var optionsTexts = new string[]
+                    {
                     "變更等級/暱稱",
                     "變更簡介",
                     "變更截圖",
                     "新增Follow",
                     "取消Follow",
                     "刪除帳號"
-                };
+                    };
 
-                var accountFieldBuilders = new List<EmbedFieldBuilder>
+                    var accountFieldBuilders = new List<EmbedFieldBuilder>
                 {
                     new EmbedFieldBuilder{ Name = "暱稱", Value = chosePlayerAccount.GameHandle ?? "--", IsInline = true },
                     new EmbedFieldBuilder{ Name = "等級", Value = chosePlayerAccount.GameLevel == 0 ? "--" : chosePlayerAccount.GameLevel.ToString(), IsInline = true },
@@ -594,36 +529,35 @@ namespace MitamaBot.Modules
                     //new EmbedFieldBuilder{ Name = "上次更新", Value = "2019/10/31", IsInline = true }
                 };
 
-                var accountEB = new EmbedBuilder
-                {
-                    ImageUrl = chosePlayerAccount.ProfileImageUrl,
-                    Fields = accountFieldBuilders
-                };
-                if (chosePlayerAccount.LastUpdateTimestamp != default)
-                {
-                    accountEB.Timestamp = chosePlayerAccount.LastUpdateTimestamp;
-                }
-                var playerIdMenuAnswer = await AskNumberQuestion(msgPanel, x => msgPanel = x,
-                    $"【{chosePlayerAccount.GameId}】【{choseServer.ChineseName}】",
-                    optionsTexts, 1, true, null, null, accountEB);
-                if (!playerIdMenuAnswer.IsUserAnswered || playerIdMenuAnswer.IsCancelled)
-                {
-                    flagIsDialogEnded = true;
-                    continue;
-                }
+                    var accountEB = new EmbedBuilder
+                    {
+                        ImageUrl = chosePlayerAccount.ProfileImageUrl,
+                        Fields = accountFieldBuilders
+                    };
+                    if (chosePlayerAccount.LastUpdateTimestamp != default)
+                    {
+                        accountEB.Timestamp = chosePlayerAccount.LastUpdateTimestamp;
+                    }
+                    var playerIdMenuAnswer = await AskNumberQuestion(msgPanel, x => msgPanel = x,
+                        $"【{chosePlayerAccount.GameId}】【{choseServer.ChineseName}】",
+                        optionsTexts, 1, true, null, null, accountEB);
+                    if (!playerIdMenuAnswer.IsUserAnswered || playerIdMenuAnswer.IsCancelled)
+                    {
+                        break;
+                    }
 
-                string preTitle = $"{chosePlayerAccount.GameId}: ";
+                    string preTitle = $"{chosePlayerAccount.GameId}: ";
 
-                // 變更等級/暱稱
-                if (playerIdMenuAnswer.Value == 1)
-                {
-                    int maxAttemptsLvl = 3;
-                    string currentLvlText = chosePlayerAccount.GameLevel <= 0 ? "沒有等級紀錄，請填寫。" : $"目前等級為 `{chosePlayerAccount.GameLevel}`，若不變更請取消跳至下一步。";
-                    var ansLv = await AskTextQuestion(msgPanel, x => msgPanel = x,
-                        $"{preTitle}變更**等級**與暱稱", currentLvlText,
-                        true, true, maxAttemptsLvl,
-                        new List<Func<Discord.WebSocket.SocketMessage, bool>>
-                        {
+                    // 變更等級/暱稱
+                    if (playerIdMenuAnswer.Value == 1)
+                    {
+                        int maxAttemptsLvl = 3;
+                        string currentLvlText = chosePlayerAccount.GameLevel <= 0 ? "沒有等級紀錄，請填寫。" : $"目前等級為 `{chosePlayerAccount.GameLevel}`，若不變更請取消跳至下一步。";
+                        var ansLv = await AskTextQuestion(msgPanel, x => msgPanel = x,
+                            $"{preTitle}變更**等級**與暱稱", currentLvlText,
+                            true, true, maxAttemptsLvl,
+                            new List<Func<Discord.WebSocket.SocketMessage, bool>>
+                            {
                             (msg) =>
                             {
                                 if (!ushort.TryParse(msg.Content, out ushort lv))
@@ -632,117 +566,117 @@ namespace MitamaBot.Modules
                                 }
                                 return lv > 0 && lv <= 300;
                             }
-                        },
-                        new List<Action<Discord.WebSocket.SocketMessage, int>>
-                        {
+                            },
+                            new List<Action<Discord.WebSocket.SocketMessage, int>>
+                            {
                             async (msg, attempts) =>
                             {
                                 await msgPanel.ModifyAsync(x=>
                                     x.Content=$"{Context.User.Mention} 請輸入 1~300 之間的整數。`還剩 {maxAttemptsLvl - attempts} 次機會`");
                             }
-                        });
-                    if (!ansLv.IsUserAnswered)
-                    {
-                        return;
-                    }
-                    if (!ansLv.IsCancelled)
-                    {
-                        var lvl = ushort.Parse(ansLv.Value);
-                        chosePlayerAccount.GameLevel = lvl;
-                        if (!MagirecoInfoSvc.PlayerAccount.UpdateItem(chosePlayerAccount, chosePlayerAccount.Id))
+                            });
+                        if (!ansLv.IsUserAnswered)
                         {
-                            await msgPanel.ModifyAsync(x => x.Content = $"{Context.User.Mention} 等級變更失敗。");
-                            continue;
+                            return;
                         }
-                        await msgPanel.ModifyAsync(x => x.Content = $"{Context.User.Mention} 等級已變更為 **{lvl}**。");
-                    }
-                    // 變更暱稱
-                    int maxAttemptsNickname = 3;
-                    string currentNicknameText = chosePlayerAccount.GameLevel <= 0 ? "沒有暱稱資料，請填寫。" : $"目前暱稱為 `{chosePlayerAccount.GameHandle}`，若不變更請點選❎跳至下一步。";
-                    var ansNickname = await AskTextQuestion(msgPanel, x => msgPanel = x,
-                        $"{chosePlayerAccount.GameId}: 變更等級與**暱稱**", $"{currentNicknameText} *(字數≦8)*",
-                        true, false, maxAttemptsNickname,
-                        new List<Func<Discord.WebSocket.SocketMessage, bool>>
+                        if (!ansLv.IsCancelled)
                         {
+                            var lvl = ushort.Parse(ansLv.Value);
+                            chosePlayerAccount.GameLevel = lvl;
+                            if (!MagirecoInfoSvc.PlayerAccount.UpdateItem(chosePlayerAccount, chosePlayerAccount.Id))
+                            {
+                                await msgPanel.ModifyAsync(x => x.Content = $"{Context.User.Mention} 等級變更失敗。");
+                                continue;
+                            }
+                            await msgPanel.ModifyAsync(x => x.Content = $"{Context.User.Mention} 等級已變更為 **{lvl}**。");
+                        }
+                        // 變更暱稱
+                        int maxAttemptsNickname = 3;
+                        string currentNicknameText = chosePlayerAccount.GameLevel <= 0 ? "沒有暱稱資料，請填寫。" : $"目前暱稱為 `{chosePlayerAccount.GameHandle}`，若不變更請點選❎跳至下一步。";
+                        var ansNickname = await AskTextQuestion(msgPanel, x => msgPanel = x,
+                            $"{chosePlayerAccount.GameId}: 變更等級與**暱稱**", $"{currentNicknameText} *(字數≦8)*",
+                            true, false, maxAttemptsNickname,
+                            new List<Func<Discord.WebSocket.SocketMessage, bool>>
+                            {
                             (msg) =>
                             {
                                 return msg.Content.Length <= 8;
                             }
-                        },
-                        new List<Action<Discord.WebSocket.SocketMessage, int>>
-                        {
+                            },
+                            new List<Action<Discord.WebSocket.SocketMessage, int>>
+                            {
                             async (msg, attempts) =>
                             {
                                 await msgPanel.ModifyAsync(x=>
                                     x.Content=$"{Context.User.Mention} 不得超過8個字，請重新輸入。`還剩 {maxAttemptsNickname - attempts} 次機會`");
                             }
-                        });
-                    if (!ansNickname.IsUserAnswered)
-                    {
-                        return;
-                    }
-                    if (!ansNickname.IsCancelled)
-                    {
-                        chosePlayerAccount.GameHandle = ansNickname.Value;
-                        if (!MagirecoInfoSvc.PlayerAccount.UpdateItem(chosePlayerAccount, chosePlayerAccount.Id))
+                            });
+                        if (!ansNickname.IsUserAnswered)
                         {
-                            await msgPanel.ModifyAsync(x => x.Content = $"{Context.User.Mention} 暱稱變更失敗。");
-                            continue;
+                            return;
                         }
-                        await msgPanel.ModifyAsync(x => x.Content = $"{Context.User.Mention} 暱稱已變更為 {ansNickname.Value}。");
-                    }
-                    continue;
-                }
-                // 變更簡介
-                else if (playerIdMenuAnswer.Value == 2) 
-                {
-                    int maxAttempts = 3;
-                    var ansComment = await AskTextQuestion(msgPanel, x => msgPanel = x,
-                        $"{preTitle}變更簡介", "請輸入帳號簡介 (50字以內)", true, false, maxAttempts,
-                        new List<Func<Discord.WebSocket.SocketMessage, bool>> 
+                        if (!ansNickname.IsCancelled)
                         {
-                            msg => 
+                            chosePlayerAccount.GameHandle = ansNickname.Value;
+                            if (!MagirecoInfoSvc.PlayerAccount.UpdateItem(chosePlayerAccount, chosePlayerAccount.Id))
+                            {
+                                await msgPanel.ModifyAsync(x => x.Content = $"{Context.User.Mention} 暱稱變更失敗。");
+                                continue;
+                            }
+                            await msgPanel.ModifyAsync(x => x.Content = $"{Context.User.Mention} 暱稱已變更為 {ansNickname.Value}。");
+                        }
+                        continue;
+                    }
+                    // 變更簡介
+                    else if (playerIdMenuAnswer.Value == 2)
+                    {
+                        int maxAttempts = 3;
+                        var ansComment = await AskTextQuestion(msgPanel, x => msgPanel = x,
+                            $"{preTitle}變更簡介", "請輸入帳號簡介 (50字以內)", true, false, maxAttempts,
+                            new List<Func<Discord.WebSocket.SocketMessage, bool>>
+                            {
+                            msg =>
                             {
                                 return msg.Content.Length <= 50;
                             }
-                        },
-                        new List<Action<Discord.WebSocket.SocketMessage, int>> 
-                        {
-                            async (msg, attempts) => 
+                            },
+                            new List<Action<Discord.WebSocket.SocketMessage, int>>
                             {
-                                await msgPanel.ModifyAsync(x=> 
+                            async (msg, attempts) =>
+                            {
+                                await msgPanel.ModifyAsync(x=>
                                     x.Content = Context.User.ContentWithMention("簡介不得超過50字！", MessageHelper.ResultKind.Forbidden));
                             }
-                        });
-                    if (ansComment.IsCancelled)
-                    {
-                        continue;
-                    }
-                    if (ansComment.IsUserAnswered)
-                    {
-                        chosePlayerAccount.Description = ansComment.Value;
-                        string resultMsg;
-                        if (MagirecoInfoSvc.PlayerAccount.UpdateItem(chosePlayerAccount, chosePlayerAccount.Id))
+                            });
+                        if (ansComment.IsCancelled)
                         {
-                            resultMsg = Context.User.ContentWithMention("已變更個人簡介。", MessageHelper.ResultKind.Succeed);
+                            continue;
                         }
-                        else
+                        if (ansComment.IsUserAnswered)
                         {
-                            resultMsg = Context.User.ContentWithMention("個人簡介變更失敗！", MessageHelper.ResultKind.Failed);
+                            chosePlayerAccount.Description = ansComment.Value;
+                            string resultMsg;
+                            if (MagirecoInfoSvc.PlayerAccount.UpdateItem(chosePlayerAccount, chosePlayerAccount.Id))
+                            {
+                                resultMsg = Context.User.ContentWithMention("已變更個人簡介。", MessageHelper.ResultKind.Succeed);
+                            }
+                            else
+                            {
+                                resultMsg = Context.User.ContentWithMention("個人簡介變更失敗！", MessageHelper.ResultKind.Failed);
+                            }
+                            await msgPanel.ModifyAsync(x => x.Content = resultMsg);
+                            continue;
                         }
-                        await msgPanel.ModifyAsync(x => x.Content = resultMsg);
-                        continue;
                     }
-                }
-                // 設置個人檔案圖片網址
-                else if (playerIdMenuAnswer.Value == 3)
-                {
-                    int maxAttempts = 3;
-                    var ansImgUrl = await AskTextQuestion(msgPanel, x => msgPanel = x,
-                        $"{preTitle}設置個人檔案截圖", "請輸入個人檔案截圖的網址:",
-                        true, true, maxAttempts,
-                        new List<Func<Discord.WebSocket.SocketMessage, bool>>
-                        {
+                    // 設置個人檔案圖片網址
+                    else if (playerIdMenuAnswer.Value == 3)
+                    {
+                        int maxAttempts = 3;
+                        var ansImgUrl = await AskTextQuestion(msgPanel, x => msgPanel = x,
+                            $"{preTitle}設置個人檔案截圖", "請輸入個人檔案截圖的網址:",
+                            true, true, maxAttempts,
+                            new List<Func<Discord.WebSocket.SocketMessage, bool>>
+                            {
                             (msg) =>
                             {
                                 Uri uriResult;
@@ -750,37 +684,38 @@ namespace MitamaBot.Modules
                                 && (uriResult.Scheme == Uri.UriSchemeHttp || uriResult.Scheme == Uri.UriSchemeHttps);
                                 return result;
                             }
-                        },
-                        new List<Action<Discord.WebSocket.SocketMessage, int>>
-                        {
+                            },
+                            new List<Action<Discord.WebSocket.SocketMessage, int>>
+                            {
                             async (msg, attempts) =>
                             {
                                 await msgPanel.ModifyAsync(x=>
                                     x.Content = Context.User.ContentWithMention($"請輸入有效的圖片網址。`還剩 {maxAttempts - attempts} 次機會`", MessageHelper.ResultKind.Forbidden)
                                     );
                             }
-                        });
-                    if (!ansImgUrl.IsUserAnswered)
-                    {
-                        return;
-                    }
-                    if (ansImgUrl.IsCancelled)
-                    {
+                            });
+                        if (!ansImgUrl.IsUserAnswered)
+                        {
+                            return;
+                        }
+                        if (ansImgUrl.IsCancelled)
+                        {
+                            continue;
+                        }
+
+                        chosePlayerAccount.ProfileImageUrl = ansImgUrl.Value;
+                        if (!MagirecoInfoSvc.PlayerAccount.UpdateItem(chosePlayerAccount, chosePlayerAccount.Id))
+                        {
+                            await msgPanel.ModifyAsync(x => x.Content = $"{Context.User.Mention} 個人檔案截圖更新失敗。");
+                            continue;
+                        }
+                        await msgPanel.ModifyAsync(x => x.Content = $"{Context.User.Mention} 已更新個人檔案截圖。");
                         continue;
                     }
 
-                    chosePlayerAccount.ProfileImageUrl = ansImgUrl.Value;
-                    if (!MagirecoInfoSvc.PlayerAccount.UpdateItem(chosePlayerAccount, chosePlayerAccount.Id))
-                    {
-                        await msgPanel.ModifyAsync(x => x.Content = $"{Context.User.Mention} 個人檔案截圖更新失敗。");
-                        continue;
-                    }
-                    await msgPanel.ModifyAsync(x => x.Content = $"{Context.User.Mention} 已更新個人檔案截圖。");
-                    continue;
                 }
-                
-            }
-            while (!flagIsDialogEnded);
+                while (true);
+            } while (true);
         }
 
         [Command("profile-edit", RunMode = RunMode.Async)]
